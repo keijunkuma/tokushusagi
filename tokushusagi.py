@@ -7,6 +7,7 @@ import wave
 import smtplib
 from email.mime.text import MIMEText
 import ssl
+import os
 
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 FROM_EMAIL = os.getenv('FROM_EMAIL')
@@ -25,7 +26,7 @@ def MakeWavFile(FileName="sample.wav", Record_Seconds=2):
                     channels=1,
                     rate=RATE,
                     input=True,
-                    input_device_index = 1,
+                    input_device_index = 0,
                     frames_per_buffer=chunk)
     
     # レコード開始
@@ -51,7 +52,7 @@ def MakeWavFile(FileName="sample.wav", Record_Seconds=2):
 
     
 # WAVファイル作成, 引数は（ファイル名, 録音する秒数）
-MakeWavFile("sample.wav", Record_Seconds=30)
+MakeWavFile("sample.wav", Record_Seconds=10)
 
 # model = WhisperModel("large-v3", device="cpu", compute_type="int8", local_files_only=False)  # GPUを使用する場合は "cuda" を指定
 model = WhisperModel("./medium", device="cpu", compute_type="int8", local_files_only=False)  # GPUを使用する場合は "cuda" を指定
