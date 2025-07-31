@@ -1,116 +1,177 @@
+from pickle import TRUE
+import os
+import wave
+import pyaudio
+from faster_whisper import WhisperModel
 import requests
 import json
-from faster_whisper import WhisperModel
 import re
-import pyaudio
-import wave
 import smtplib
 from email.mime.text import MIMEText
 import ssl
+import numpy as np
+import datetime
+import base64
 import os
+from google import genai
+from google.genai import types
 
+# 環境変数の読み込み
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 FROM_EMAIL = os.getenv('FROM_EMAIL')
 TO_EMAIL = os.getenv('TO_EMAIL')
 SMTP_PASS = os.getenv('SMTP_PASS')
 
-def MakeWavFile(FileName="sample.wav", Record_Seconds=2):
-    chunk = 1024
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
-    RATE = 44100
-    
-    p = pyaudio.PyAudio()
-    
-    stream = p.open(format=FORMAT,
-                    channels=1,
-                    rate=RATE,
-                    input=True,
-                    input_device_index = 0,
-                    frames_per_buffer=chunk)
-    
-    # レコード開始
-    print("Now Recording...")
-    all = []
-    for i in range(0, int(RATE / chunk * Record_Seconds)):
-        data = stream.read(chunk, exception_on_overflow = False)  # 音声を読み取って、
-        all.append(data)  # データを追加
-    
-    # レコード終了
-    print("Finished Recording.")
-    
-    stream.close()
-    p.terminate()
-    wavFile = wave.open(FileName, 'wb')  # 引数でファイル名を渡す
-    wavFile.setnchannels(CHANNELS)
-    wavFile.setsampwidth(p.get_sample_size(FORMAT))
-    wavFile.setframerate(RATE)
-    wavFile.writeframes(b''.join(all))  # Python2 用
-    # wavFile.writeframes(b"".join(all)) # Python3用
-    
-    wavFile.close()
+# Whisperモデルの準備
+#model = WhisperModel("/content/large-v3-turbo-ct2", device="cpu", compute_type="int8", local_files_only=True)
+model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8", local_files_only=True)
 
-    
-# WAVファイル作成, 引数は（ファイル名, 録音する秒数）
-MakeWavFile("sample.wav", Record_Seconds=10)
+# 録音設定
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
+SEGMENT_DURATION = 10  # 5秒ごとに録音
+TOTAL_DURATION = 60   # 合計録音時間（例：60秒）
 
-# model = WhisperModel("large-v3", device="cpu", compute_type="int8", local_files_only=False)  # GPUを使用する場合は "cuda" を指定
-model = WhisperModel("./medium", device="cpu", compute_type="int8", local_files_only=False)  # GPUを使用する場合は "cuda" を指定
+DUMMY = True
 
-audio_path = "sample.wav"
-segments, _ = model.transcribe(audio_path, language="ja")
+# 録音 + 文字起こし（ファイルを保存せず、bytesを結合）
+def record_and_transcribe():
+    audio = pyaudio.PyAudio()
+    if DUMMY:
+      stream = wave.open("action_20240926.wav","r")
+    else:
+      stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-transcription = ''
-for segment in segments:
-   transcription += str(segment.text) + '\n'
-print(transcription)
+    print("録音開始...")
 
-url = "http://localhost:8080/v1/chat/completions"
-headers = {"Content-Type": "application/json"}
-data = {
-    "model": "gpt-4o",
-    "messages": [
-        {
-            "role": "system",
-            "content": "今から文字列を送るので詐欺か詐欺ではないかだけで判断してください。出力例に完全に一致するように出してください。\n### 出力例\n詐欺の確率100%"
-        },
-        {
-            "role": "user",
-            "content": transcription
-        }
-    ]
-}
 
-response = requests.post(url, headers=headers, data=json.dumps(data))
-j = response.json()
-fraud_probability = j['choices'][0]['message']['content']
-# fraud_probability =  "詐欺の確率0%\n詐欺の確率1%\n詐欺の確率2%\nこれは100%詐欺ではありません"
-print(fraud_probability)
+    transcription = ''
+    frames = []
+    i = 0
 
-# 改行以降の数字と % を取得
-match = re.search(r'詐欺の確率(\d+)%', fraud_probability)
+    while True:
+      i = i+1
+      print(f"録音中... {i * SEGMENT_DURATION} 秒目")
+      print(frames)
 
-if match:
-    # 詐欺の確率を整数として取得
-    print(match.group(1))
-    probability = int(match.group(1))
-    print(f"詐欺の確率部分: {probability}%")
-    # 詐欺の可能性が高いかどうか判断
-    if probability >= 70:
-        print("詐欺の可能性が高いです")
-        # メール送信部分
-        msg = MIMEText("詐欺の確率が高いです、確認をとってみてください", "plain", "utf-8")
-        msg['Subject'] = "鳥の便り_詐欺対策サービス"
-        msg['From'] = FROM_EMAIL
-        msg['To'] = TO_EMAIL
+      motono = len(frames)
 
-        context = ssl.create_default_context()
-        smtpobj = smtplib.SMTP_SSL(SMTP_SERVER, 465, context=context)
-        smtpobj.login(FROM_EMAIL, SMTP_PASS)
-        smtpobj.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
-        smtpobj.quit()
+      for _ in range(0, int(RATE * SEGMENT_DURATION / CHUNK)):
+        if DUMMY:
+          data = stream.readframes(CHUNK)
+        else:
+          data = stream.read(CHUNK, exception_on_overflow=False)
+        if len(data) == 0:
+          frames.append(data)
 
-    elif probability < 70:
-        print("詐欺の可能性は低いです")
-else:
-    print("該当する部分はありません")
+      fuetenai = len(frames) == motono
+
+      segment_data = b''.join(frames)
+      print(type(segment_data))
+      buffer = np.frombuffer(segment_data, dtype=np.int16).astype(np.float32)/32768.0
+      #transcribeに入れられる形式標本化周波数　= 16000Hz 量子化＝float32　符号化　＝float
+      segments, _ = model.transcribe(buffer, "ja")
+      print(datetime.datetime.now())
+      segments =list(segments)
+      for segment in segments:
+        print(segment)
+
+      print(datetime.datetime.now())
+
+      if len(segments) >= 2:
+        for segment in segments[:-1]:
+          transcription += segment.text + '\n'
+          print(transcription)
+
+        segment = segments[-2]  # 最後から2番目
+        aaa = float(segment.end)
+        bbb = int(aaa * RATE // CHUNK)
+        print(bbb)
+        del frames[0:bbb]
+
+      elif fuetenai == True:
+        for segment in segments:
+          transcription += segment.text + '\n'
+          print(transcription)
+
+        # セグメントから使った分を抜く
+        segment = segments[-2]  # 最後から2番目
+        aaa = float(segment.end)
+        bbb = int(aaa * RATE // CHUNK)
+        print(bbb)
+        del frames[0:bbb]
+
+      print(frames)
+      print(len(frames))
+
+      if fuetenai:
+        break
+
+    if DUMMY:
+      stream.close()
+    else:
+      stream.stop_stream()
+      stream.close()
+      audio.terminate()
+
+    return transcription
+
+# 詐欺判定APIとの通信
+def detect_fraud(transcription):
+    url = "http://localhost:8080/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "model": "gpt-4o",
+        "messages": [
+            {
+                "role": "system",
+                "content": "今から文字列を送るので詐欺か詐欺ではないかだけで判断してください。出力例に完全に一致するように出してください。\n### 出力例\n詐欺の確率100%"
+            },
+            {
+                "role": "user",
+                "content": transcription
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    j = response.json()
+    result = j['choices'][0]['message']['content']
+    print(result)
+    return result
+
+# メール送信
+def send_alert_email():
+    msg = MIMEText("詐欺の確率が高いです、確認をとってみてください", "plain", "utf-8")
+    msg['Subject'] = "鳥の便り_詐欺対策サービス"
+    msg['From'] = FROM_EMAIL
+    msg['To'] = TO_EMAIL
+
+    context = ssl.create_default_context()
+    smtpobj = smtplib.SMTP_SSL(SMTP_SERVER, 465, context=context)
+    smtpobj.login(FROM_EMAIL, SMTP_PASS)
+    smtpobj.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
+    smtpobj.quit()
+    print("メールを送信しました。")
+
+# メイン処理
+def main():
+    transcription = record_and_transcribe()
+    result = detect_fraud(transcription)
+
+    match = re.search(r'詐欺の確率(\d+)%', result)
+    if match:
+        probability = int(match.group(1))
+        print(f"詐欺の確率部分: {probability}%")
+        if probability >= 70:
+            print("詐欺の可能性が高いです")
+            send_alert_email()
+        else:
+            print("詐欺の可能性は低いです")
+    else:
+        print("該当する部分はありません")
+
+if __name__ == "__main__":
+    main()
