@@ -24,7 +24,7 @@ SMTP_PASS = os.getenv('SMTP_PASS')
 
 # Whisperモデルの準備
 #model = WhisperModel("/content/large-v3-turbo-ct2", device="cpu", compute_type="int8", local_files_only=True)
-model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8", local_files_only=True)
+model = WhisperModel("large-v3-turbo", device="cuda", compute_type="int8", local_files_only=False)
 
 # 録音設定
 CHUNK = 1024
@@ -40,7 +40,7 @@ DUMMY = True
 def record_and_transcribe():
     audio = pyaudio.PyAudio()
     if DUMMY:
-      stream = wave.open("action_20240926.wav","r")
+      stream = wave.open("0e874dc23542d17e635d73547b245bb0.wav","r")
     else:
       stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
@@ -48,7 +48,9 @@ def record_and_transcribe():
 
 
     transcription = ''
+    #前の段階の処理が入るようになっているのでframes = []をfor文の中に入れることができない
     frames = []
+
     i = 0
 
     while True:
@@ -56,17 +58,18 @@ def record_and_transcribe():
       print(f"録音中... {i * SEGMENT_DURATION} 秒目")
       print(frames)
 
-      motono = len(frames)
 
+      fuetenai = True
+      #chunkを細かくすることで、下のコードで最後のブロック以外を消せるようにしている
       for _ in range(0, int(RATE * SEGMENT_DURATION / CHUNK)):
         if DUMMY:
           data = stream.readframes(CHUNK)
         else:
           data = stream.read(CHUNK, exception_on_overflow=False)
-        if len(data) == 0:
+        if len(data) != 0:
           frames.append(data)
-
-      fuetenai = len(frames) == motono
+          #この部分にbreakを入れないのは今回の処理になにも入っていないとき、ここで終わらせると前段階の最後のブロックのデータが処理されずに消えてしまうから
+          fuetenai = False
 
       segment_data = b''.join(frames)
       print(type(segment_data))
@@ -95,19 +98,10 @@ def record_and_transcribe():
         for segment in segments:
           transcription += segment.text + '\n'
           print(transcription)
-
-        # セグメントから使った分を抜く
-        segment = segments[-2]  # 最後から2番目
-        aaa = float(segment.end)
-        bbb = int(aaa * RATE // CHUNK)
-        print(bbb)
-        del frames[0:bbb]
+        break
 
       print(frames)
       print(len(frames))
-
-      if fuetenai:
-        break
 
     if DUMMY:
       stream.close()
@@ -167,7 +161,7 @@ def main():
         print(f"詐欺の確率部分: {probability}%")
         if probability >= 70:
             print("詐欺の可能性が高いです")
-            send_alert_email()
+            #send_alert_email()
         else:
             print("詐欺の可能性は低いです")
     else:
