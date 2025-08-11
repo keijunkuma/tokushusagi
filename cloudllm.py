@@ -21,6 +21,7 @@ SMTP_SERVER = os.getenv('SMTP_SERVER')
 FROM_EMAIL = os.getenv('FROM_EMAIL')
 TO_EMAIL = os.getenv('TO_EMAIL')
 SMTP_PASS = os.getenv('SMTP_PASS')
+key = ""
 
 # Whisperモデルの準備
 #model = WhisperModel("/content/large-v3-turbo-ct2", device="cpu", compute_type="int8", local_files_only=True)
@@ -115,7 +116,7 @@ def record_and_transcribe():
 # 詐欺判定APIとの通信
 def detect_fraud(transcription):
     client = genai.Client(
-        api_key="AIzaSyAJSaTgRCm5OjBisXW8CyFW7Sjoa7xmEYk",
+        api_key=key,
     )
 
     model = "gemma-3-1b-it"
