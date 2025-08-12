@@ -14,7 +14,6 @@ import datetime
 import base64
 import os
 
-
 # 環境変数の読み込み
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 FROM_EMAIL = os.getenv('FROM_EMAIL')
