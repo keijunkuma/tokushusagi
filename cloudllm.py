@@ -13,8 +13,6 @@ import numpy as np
 import datetime
 import base64
 import os
-from google import genai
-from google.genai import types
 
 # 環境変数の読み込み
 SMTP_SERVER = os.getenv('SMTP_SERVER')
