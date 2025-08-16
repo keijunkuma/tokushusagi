@@ -23,10 +23,8 @@ if len(sys.argv) < 2 or sys.argv[1] not in ['local', 'cloud']:
 mode = sys.argv[1]
 
 # 引数に応じて、どちらのdetect_fraud関数をインポートするか決める
-if mode == 'local':
-    from my_local_ai.py import detect_fraud
-else: # mode == 'cloud'
-    from my_cloud_ai.py import detect_fraud
+if mode == 'local' or mode == 'openai':
+    from test import detect_fraud
 # --- スイッチここまで ---
 
 
@@ -145,7 +143,7 @@ def main():
         print("--------------------------\n")
 
         # ここで呼び出すdetect_fraudは、起動時の引数によって中身が変わっている
-        result = detect_fraud(transcription)
+        result = detect_fraud(transcription,mode)
 
         match = re.search(r'詐欺の確率(\d+)%', result)
         if match:
