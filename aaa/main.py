@@ -8,10 +8,8 @@ import smtplib
 from email.mime.text import MIMEText
 import ssl
 import datetime
-
 # --- 外部ライブラリ ---
 from faster_whisper import WhisperModel
-
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
 from test import detect_fraud
