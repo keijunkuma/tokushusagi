@@ -15,7 +15,7 @@ from faster_whisper import WhisperModel
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
 
-if sys.argv[1] in ['local', 'cloud']:
+if sys.argv[1] in ['local', 'openai']:
     from test import detect_fraud
 # --- ここまで ---
 

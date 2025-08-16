@@ -25,7 +25,7 @@ def detect_fraud(transcription: str, provider: str) -> str:
             return "エラー: 環境変数 'OPENAI_API_KEY' が設定されていません"
         
         url = "https://api.openai.com/v1/chat/completions"
-        model = "gpt-4o"
+        model = "gemini-2.5-flash"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
