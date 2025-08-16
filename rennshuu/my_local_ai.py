@@ -33,3 +33,4 @@ def detect_fraud(transcription: str) -> str:
     except requests.exceptions.RequestException as e:
         print(f"ローカルAIサーバーへの接続に失敗しました: {e}")
         return "エラー: 判定サーバーに接続できません"
+    if __name__ == '__main__':
