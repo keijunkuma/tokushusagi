@@ -24,7 +24,7 @@ def detect_fraud(transcription: str, provider: str) -> str:
         if not api_key:
             return "エラー: 環境変数 'OPENAI_API_KEY' が設定されていません"
         
-        url = "https://api.openai.com/v1/chat/completions"
+        url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
         model = "gemini-2.5-flash"
         headers = {
             "Content-Type": "application/json",
@@ -60,3 +60,18 @@ def detect_fraud(transcription: str, provider: str) -> str:
     except requests.exceptions.RequestException as e:
         print(f"{provider}への接続に失敗しました: {e}")
         return f"エラー: {provider}に接続できません"
+    
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3:
+        print("使用法: python local_detector.py <transcription> <provider>")
+        sys.exit(1)
+        
+    transcription = sys.argv[1]
+    provider = sys.argv[2]
+        
+    result = detect_fraud(transcription, provider)
+    print("\n--- 判定結果 ---")
+    print(result)
+    print("-----------------")
+    sys.exit(0)

@@ -14,9 +14,8 @@ from faster_whisper import WhisperModel
 
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
+from test import detect_fraud
 
-if sys.argv[1] in ['local', 'openai']:
-    from test import detect_fraud
 # --- ここまで ---
 
 
@@ -26,8 +25,6 @@ FROM_EMAIL = os.getenv('FROM_EMAIL')
 TO_EMAIL = os.getenv('TO_EMAIL')
 SMTP_PASS = os.getenv('SMTP_PASS')
 
-# Whisperモデルの準備 (これはメインのプログラムが持つ)
-model = WhisperModel("large-v3", device="cuda", compute_type="float16")
 
 #【ここを修正】send_alert_email関数の中身を元に戻す
 def send_alert_email():
@@ -61,7 +58,7 @@ def main():
     mode = sys.argv[1]
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
     
-    transcription = record_and_transcribe(model)
+    transcription = record_and_transcribe(mode)
     
     if transcription:
         print("\n---最終的な文字起こし結果---")
@@ -87,3 +84,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
