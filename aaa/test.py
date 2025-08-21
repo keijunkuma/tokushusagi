@@ -16,7 +16,7 @@ def detect_fraud(transcription: str, provider: str) -> str:
     # if文で、providerに応じた設定を割り当てる
     if provider == 'local':
         url = "http://localhost:8080/v1/chat/completions"
-        model = "gpt-4o"  # ローカルで動かしているモデル名
+        model = "gemma-3-4b-it-Q4_K_M"  # ローカルで動かしているモデル名
         headers = {"Content-Type": "application/json"}
 
     elif provider == 'openai':

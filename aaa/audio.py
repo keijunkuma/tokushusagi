@@ -2,6 +2,7 @@
 
 import pyaudio
 import numpy as np
+from faster_whisper import WhisperModel
 
 # 録音設定
 CHUNK = 1024
