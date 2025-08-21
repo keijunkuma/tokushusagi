@@ -21,7 +21,8 @@ pip install -U "huggingface_hub[cli]" "llama-cpp-python[server]" faster-whisper 
 huggingface-cli login
 huggingface-cli download --local-dir medium Systran/faster-whisper-medium model.bin config.json tokenizer.json vocabulary.txt
 
-hf download \--local-dir large-v3-turbo \Systran/faster-whisper-large-v3-turbo \model.bin config.json tokenizer.json vocabulary.txt
+hf download \--local-dir ./Gemma-3-4B-IT \h2oai/faster-whisper-large-v3-turbo \model.bin config.json tokenizer.json vocabulary.json
+
 
 
 huggingface-cli download --local-dir Phi-3.1-mini-128k-instruct lmstudio-community/Phi-3.1-mini-128k-instruct-GGUF Phi-3.1-mini-128k-instruct-Q4_K_M.gguf
