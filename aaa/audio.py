@@ -8,7 +8,7 @@ from faster_whisper import WhisperModel
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 16000
+RATE = 48000
 SEGMENT_DURATION = 10  # 10秒ごとに文字起こし処理を実行
 
 # modelを引数として受け取るように変更
@@ -17,12 +17,8 @@ def record_and_transcribe(mode:str) -> str:
     マイクからリアルタイムで録音し、文字起こしを行う関数。
     """
     # Whisperモデルの準備 (これはメインのプログラムが持つ)
-    if mode == 'local':
-        model = WhisperModel("large-v3", device="cpu", compute_type="float16")
-    else:
-        model = WhisperModel("large-v3", device="cuda", compute_type="float16")
-
-
+    model = WhisperModel("large-v3-turbo", device="cpu", compute_type="float32")
+    
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     print("録音開始... (Ctrl+Cで終了)")
