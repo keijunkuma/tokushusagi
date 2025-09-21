@@ -1,27 +1,27 @@
-# audio_handler.py
-
 import pyaudio
 import numpy as np
 from faster_whisper import WhisperModel
+from scipy.signal import resample
 
 # 録音設定
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 48000
+RATE = 48000  # 録音レートは48000Hzのまま
 SEGMENT_DURATION = 10  # 10秒ごとに文字起こし処理を実行
 
-
-# modelを引数として受け取るように変更
-def record_and_transcribe(mode:str,stream) -> str:
+def record_and_transcribe(mode: str, stream) -> str:
     """
     マイクからリアルタイムで録音し、文字起こしを行う関数。
     """
-    # Whisperモデルの準備 (これはメインのプログラムが持つ)
+    # Whisperモデルの準備
     model = WhisperModel("large-v3", device="cpu", compute_type="float16")
 
     frames = []
     full_transcription = ''
+    
+    # Whisperが推奨するサンプリングレート
+    WHISPER_RATE = 16000
 
     try:
         while True:
@@ -30,13 +30,19 @@ def record_and_transcribe(mode:str,stream) -> str:
                 frames.append(data)
 
             segment_data = b''.join(frames)
+            # numpyバッファに変換
             buffer = np.frombuffer(segment_data, dtype=np.int16).astype(np.float32) / 32768.0
 
-            segments, _ = model.transcribe(buffer, language="ja")
+            # 録音した音声を16000Hzにダウンサンプリング
+            num_samples_resampled = int(buffer.shape[0] * (WHISPER_RATE / RATE))
+            resampled_buffer = resample(buffer, num_samples_resampled)
+            
+            segments, _ = model.transcribe(resampled_buffer, language="ja")
             
             segments = list(segments)
             print("---")
             for segment in segments:
+                # タイムスタンプはダウンサンプリング後の時間で表示される
                 print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
             
             if len(segments) >= 2:
@@ -44,18 +50,25 @@ def record_and_transcribe(mode:str,stream) -> str:
                     if segment.text not in full_transcription:
                         full_transcription += segment.text
                 
+                # 最後の未処理のフレームまで戻る
                 last_processed_time = segments[-2].end
-                last_processed_frame_index = int(last_processed_time * RATE / CHUNK)
+                last_processed_frame_index = int(last_processed_time * RATE / WHISPER_RATE * CHUNK)
+                
+                # 録音バッファの先頭から、すでに処理した分を削除
                 del frames[:last_processed_frame_index]
-
+                
     except KeyboardInterrupt:
         print("\n録音を終了します。最終処理中...")
         
-    
     if frames:
         segment_data = b''.join(frames)
         buffer = np.frombuffer(segment_data, dtype=np.int16).astype(np.float32) / 32768.0
-        segments, _ = model.transcribe(buffer, language="ja")
+        
+        # 最終セグメントもリサンプリング
+        num_samples_resampled = int(buffer.shape[0] * (WHISPER_RATE / RATE))
+        resampled_buffer = resample(buffer, num_samples_resampled)
+        
+        segments, _ = model.transcribe(resampled_buffer, language="ja")
         for segment in segments:
             if segment.text not in full_transcription:
                 full_transcription += segment.text
@@ -64,6 +77,13 @@ def record_and_transcribe(mode:str,stream) -> str:
 
 if __name__ == "__main__":
     import sys
+    
+    # scipyがインストールされているか確認
+    try:
+        import scipy
+    except ImportError:
+        print("scipyライブラリが必要です。`pip install scipy` でインストールしてください。")
+        sys.exit(1)
 
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
@@ -72,8 +92,9 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("使用法: python audio_handler.py <mode>")
         sys.exit(1)
+    
     mode = sys.argv[1]
-    transcription = record_and_transcribe(mode,stream)
+    transcription = record_and_transcribe(mode, stream)
 
     stream.stop_stream()
     stream.close()
