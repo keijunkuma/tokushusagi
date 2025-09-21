@@ -15,6 +15,7 @@ from faster_whisper import WhisperModel
 from audio import record_and_transcribe 
 from test import detect_fraud
 from zeroitihantei import zeroiti, hantei
+from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -85,7 +86,13 @@ def main():
         else:
             print(f"{datetime.datetime.now()}: 詐欺の可能性は低いと判断されました。再度音声を取得します。")
     
-    
+    _, signal = data
+    signal = signal / 32768.0  # Normalize
+    decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
+    print(decoded_data)
+    decoded_bytes = decode_bytes(decoded_data)
+    print_bytes(decoded_bytes)
+    number_display(decoded_bytes)
     transcription = record_and_transcribe(mode,stream)
     
     if transcription:
