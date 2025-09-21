@@ -8,24 +8,18 @@ from faster_whisper import WhisperModel
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 16000
+RATE = 48000
 SEGMENT_DURATION = 10  # 10秒ごとに文字起こし処理を実行
 
+
 # modelを引数として受け取るように変更
-def record_and_transcribe(mode:str) -> str:
+def record_and_transcribe(mode:str,stream) -> str:
     """
     マイクからリアルタイムで録音し、文字起こしを行う関数。
     """
     # Whisperモデルの準備 (これはメインのプログラムが持つ)
-    if mode == 'local':
-        model = WhisperModel("large-v3", device="cpu", compute_type="float16")
-    else:
-        model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    model = WhisperModel("large-v3", device="cpu", compute_type="float16")
 
-
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    print("録音開始... (Ctrl+Cで終了)")
 
     frames = []
     full_transcription = ''
@@ -57,10 +51,7 @@ def record_and_transcribe(mode:str) -> str:
 
     except KeyboardInterrupt:
         print("\n録音を終了します。最終処理中...")
-    finally:
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
+        
     
     if frames:
         segment_data = b''.join(frames)
@@ -74,11 +65,23 @@ def record_and_transcribe(mode:str) -> str:
 
 if __name__ == "__main__":
     import sys
+
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+    print("録音開始... (Ctrl+Cで終了)")
+
+    
+
     if len(sys.argv) != 2:
         print("使用法: python audio_handler.py <mode>")
         sys.exit(1)
     mode = sys.argv[1]
-    transcription = record_and_transcribe(mode)
+    transcription = record_and_transcribe(mode,stream)
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
     print("\n---最終的な文字起こし結果---")
     print(transcription)
     print("--------------------------\n")

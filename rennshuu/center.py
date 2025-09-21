@@ -43,7 +43,7 @@ model = WhisperModel("large-v3", device="cuda", compute_type="float16")
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 16000
+RATE = 48000
 SEGMENT_DURATION = 10  # 10秒ごとに文字起こし処理を実行
 
 def record_and_transcribe():

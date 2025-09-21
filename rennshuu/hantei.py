@@ -32,7 +32,7 @@ if __name__ == "__main__":
     import numpy as np
 
     # テストケース1: しきい値を超えるデータが含まれる場合
-    rate = 16000  # サンプリングレート
+    rate = 48000  # サンプリングレート
     interval_seconds = 0.01  # 0.01秒間隔
     threshold = 0.1  # 正規化された振幅のしきい値
 
