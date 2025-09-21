@@ -69,8 +69,6 @@ if __name__ == "__main__":
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     print("録音開始... (Ctrl+Cで終了)")
 
-    
-
     if len(sys.argv) != 2:
         print("使用法: python audio_handler.py <mode>")
         sys.exit(1)

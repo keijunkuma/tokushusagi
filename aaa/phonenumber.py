@@ -73,18 +73,19 @@ def number_display(decoded_bytes):
         param_bits = param_bits[2+param_len:]
         print(param_type, param_len, bytes(param_data).decode())
 
-_, signal = read("/content/2025_7_29 21_22_.wav")
-signal = signal / 32768.0  # Normalize
-decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
-print(decoded_data)
-decoded_bytes = decode_bytes(decoded_data)
-print_bytes(decoded_bytes)
-number_display(decoded_bytes)
+if __name__ == "__main__":
+    _, signal = read("/content/2025_7_29 21_22_.wav")
+    signal = signal / 32768.0  # Normalize
+    decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
+    print(decoded_data)
+    decoded_bytes = decode_bytes(decoded_data)
+    print_bytes(decoded_bytes)
+    number_display(decoded_bytes)
 
-_, signal = read("/content/2025_7_29 21_22_.wav")
-signal = signal / 32768.0  # Normalize
-decoded_data = decode_fsk(signal[6:], 1200, 2100, 1300, 48000)
-print(decoded_data)
-decoded_bytes = decode_bytes(decoded_data)
-print_bytes(decoded_bytes)
-number_display(decoded_bytes)
+    _, signal = read("/content/2025_7_29 21_22_.wav")
+    signal = signal / 32768.0  # Normalize
+    decoded_data = decode_fsk(signal[6:], 1200, 2100, 1300, 48000)
+    print(decoded_data)
+    decoded_bytes = decode_bytes(decoded_data)
+    print_bytes(decoded_bytes)
+    number_display(decoded_bytes)

@@ -71,13 +71,19 @@ def main():
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-    while result == False:
+
+    while True:
     # 音声データを読み込む
         data = stream.read(total_frames, exception_on_overflow=False)
 
         result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
 
         result = hantei(result_list)
+        if result == True:
+            print(f"{datetime.datetime.now()}: 詐欺の可能性が高いパターンを検知しました。文字起こしと判定を開始します。")
+            break
+        else:
+            print(f"{datetime.datetime.now()}: 詐欺の可能性は低いと判断されました。再度音声を取得します。")
     
     
     transcription = record_and_transcribe(mode,stream)
