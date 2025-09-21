@@ -20,7 +20,6 @@ def record_and_transcribe(mode:str,stream) -> str:
     # Whisperモデルの準備 (これはメインのプログラムが持つ)
     model = WhisperModel("large-v3", device="cpu", compute_type="float16")
 
-
     frames = []
     full_transcription = ''
 
