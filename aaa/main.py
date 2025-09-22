@@ -19,31 +19,34 @@ from phonenumber import number_display, print_bytes, decode_fsk
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
-FORMAT = pyaudio.paInt16
+FORMAT = pyaudio.paInt16 #2の補数として16bitで表現　
 CHANNELS = 1
-RATE = 48000  # サンプリングレート (Hz)
+RATE = 48000  # サンプリングレート (Hz)1秒間に48000回電圧の変化を確認しにいっている
 RECORD_SECONDS = 2 # 録音時間 (秒)
 INTERVAL_SECONDS = 0.01  # 分析間隔 (秒)
 CHUNK = 1024
 # 閾値設定
 THRESHOLD = 0.1  # 音量の最大値の閾値
-# 1秒間に含まれるデータ数
-total_frames = int(RATE * RECORD_SECONDS)
 
+def get_audio(stream,record_seconds):
+    # 1秒間に含まれるデータ数
+    total_frames = int(RATE * record_seconds)
+    data = stream.read(total_frames, exception_on_overflow=False) #16bit(2byte)*total_frames
+    return data
 
 
 def main():
     mode = sys.argv[1]
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
     audio = pyaudio.PyAudio()
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    index = 1
+    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
 
     while True :
-        data = stream.read(total_frames, exception_on_overflow=False)
-
-        result_list = zeroiti(data, RATE, 0.5, THRESHOLD)
-        if result_list[index] == 1:
+        data = get_audio(stream, 0.5)
+        #この0.5秒でとる予定の物は捨てる最初のいらない音を捨てる
+        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
+        #リストの中に1があるかどうか
+        if 1 in result_list:
             print("初期微動計測")
             break
 
@@ -51,7 +54,7 @@ def main():
     # 音声データを読み込む
     data = stream.read(total_frames, exception_on_overflow=False)
 
-    result_list = zeroiti(data, RATE, 2, THRESHOLD)
+    result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
 
     result_zeroiti = hantei(result_list)
     if result_zeroiti == True:

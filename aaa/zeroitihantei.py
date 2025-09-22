@@ -21,7 +21,7 @@ def zeroiti(data, rate, interval_seconds, threshold):
         max_value = np.max(chunk)
         normalized_max_value = max_value / (2**15)
             
-        # リストに分析結果を追加
+        # int型リストに分析結果を追加
         if normalized_max_value >= threshold:
             result_list.append(1)
         else:
