@@ -15,7 +15,7 @@ from faster_whisper import WhisperModel
 from audio import record_and_transcribe 
 from test import detect_fraud
 from zeroitihantei import zeroiti, hantei
-from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
+from phonenumber import number_display, print_bytes, decode_fsk
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -37,23 +37,30 @@ def main():
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+    index = 1
 
-
-    while True:
-    # 音声データを読み込む
+    while True :
         data = stream.read(total_frames, exception_on_overflow=False)
 
-        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
-
-        result_zeroiti = hantei(result_list)
-        if result_zeroiti == True:
-            print(f"{datetime.datetime.now()}: 詐欺の可能性が高いパターンを検知しました。文字起こしと判定を開始します。")
+        result_list = zeroiti(data, RATE, 0.5, THRESHOLD)
+        if result_list[index] == 1:
+            print("初期微動計測")
             break
-        else:
-            print(f"{datetime.datetime.now()}: 詐欺の可能性は低いと判断されました。再度音声を取得します。")
+
+     
+    # 音声データを読み込む
+    data = stream.read(total_frames, exception_on_overflow=False)
+
+    result_list = zeroiti(data, RATE, 2, THRESHOLD)
+
+    result_zeroiti = hantei(result_list)
+    if result_zeroiti == True:
+        print(f"{datetime.datetime.now()}: 詐欺の可能性が高いパターンを検知しました。電話番号の検知を開始します。")
+        
+    else:
+        print(f"{datetime.datetime.now()}: 詐欺の可能性は低いと判断されました。再度音声を取得します。")
     
-    _, signal = data
-    signal = signal / 32768.0  # Normalize
+    signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
     decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
     print(decoded_data)
     decoded_bytes = decode_bytes(decoded_data)

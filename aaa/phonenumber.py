@@ -23,14 +23,14 @@ def decode_fsk(signal, baud_rate, f0, f1, sample_rate):
 
     return decoded_bits
 
-def number_display(decoded_bits)
+def number_display(decoded_bits):
     index = 0
     phonedata = []
     while True:
       while len(decoded_bits) > index and decoded_bits[index] ==1 :
         index = index + 1
 
-      if len(decoded_bits) < index + 10
+      if len(decoded_bits) < index + 10:
         break
 
       block = decoded_bits[index:index+10]
@@ -51,27 +51,28 @@ def number_display(decoded_bits)
       by = block[1] + block[2] * 2 + block[3] * 4 + block[4] * 8 + block[5] * 16 + block[6] * 32 + block[7] * 64
       phonedata.append(by)
 
-  return phonedata
+    return phonedata
 
 def print_bytes(decoded_bytes):
     for d in decoded_bytes:
       print(format(d, '02X'),format(d, '07b'))
+    return
 
 def number_display(decoded_bytes):
     if len(decoded_bytes) < 8:
       print("er4")
     return
-
-  if decoded_bytes[0] == 0x10 and decoded_bytes[1] == 0x01 and decoded_bytes[2] == 0x07 and  decoded_bytes[3] == 0x10 and  decoded_bytes[4] == 0x02 and  decoded_bytes[5] == 0x40:
-      print("ナンバーディスプレイ")
-      bit_len = decoded_bytes[6]
-      param_bits = decoded_bytes[7:7+bit_len]
-      while len(param_bits) > 0:
-        param_type = param_bits[0]
-        param_len = param_bits[1]
-        param_data = param_bits[2:2+param_len]
-        param_bits = param_bits[2+param_len:]
-        print(param_type, param_len, bytes(param_data).decode())
+    
+    if decoded_bytes[0] == 0x10 and decoded_bytes[1] == 0x01 and decoded_bytes[2] == 0x07 and  decoded_bytes[3] == 0x10 and  decoded_bytes[4] == 0x02 and  decoded_bytes[5] == 0x40:
+        print("ナンバーディスプレイ")
+        bit_len = decoded_bytes[6]
+        param_bits = decoded_bytes[7:7+bit_len]
+        while len(param_bits) > 0:
+          param_type = param_bits[0]
+          param_len = param_bits[1]
+          param_data = param_bits[2:2+param_len]
+          param_bits = param_bits[2+param_len:]
+          print(param_type, param_len, bytes(param_data).decode())
 
 if __name__ == "__main__":
     _, signal = read("/content/2025_7_29 21_22_.wav")
