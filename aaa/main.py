@@ -55,18 +55,21 @@ def main():
 
     result_zeroiti = hantei(result_list)
     if result_zeroiti == True:
-        print(f"{datetime.datetime.now()}: 詐欺の可能性が高いパターンを検知しました。電話番号の検知を開始します。")
-        
+        # バイナリデータをnp.int16の配列に変換し、正規化
+        signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+        print(f"{datetime.datetime.now()}: ナンバーディスプレイのパターンを検知しました。電話番号の検知と文字起こしを開始します。")
+        # デコード処理を実行
+        decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
+        print(decoded_data)
+        decoded_bytes = decode_bytes(decoded_data)
+        print_bytes(decoded_bytes)
+        number_display(decoded_bytes)
+        #whisper処理
+        transcription = record_and_transcribe(mode,stream)
     else:
-        print(f"{datetime.datetime.now()}: 詐欺の可能性は低いと判断されました。再度音声を取得します。")
+        print(f"{datetime.datetime.now()}: ナンバーディスプレイではないと判断されました。文字起こしを取得します。")
+        transcription = record_and_transcribe(mode,stream)
     
-    signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
-    decoded_data = decode_fsk(signal[8:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-    transcription = record_and_transcribe(mode,stream)
     
     if transcription:
         print("\n---最終的な文字起こし結果---")
