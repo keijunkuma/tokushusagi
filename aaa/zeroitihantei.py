@@ -29,7 +29,7 @@ def zeroiti(data, rate, interval_seconds, threshold):
 
     return result_list
 
-def hantei(result_list):
+def interval(result_list):
     index1 = 0 
     # 閾値を超えた後にパターンをチェックする
     if 1 in result_list:

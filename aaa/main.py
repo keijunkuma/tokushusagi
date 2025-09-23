@@ -52,11 +52,14 @@ def main():
 
      
     # 音声データを読み込む
-    data = stream.read(total_frames, exception_on_overflow=False)
+    data = get_audio(stream, 5)
 
     result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
+    
+    #0.5秒間隔を判定する
+    result_zeroiti = interval(result_list)
 
-    result_zeroiti = hantei(result_list)
+    
     if result_zeroiti == True:
         # バイナリデータをnp.int16の配列に変換し、正規化
         signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
