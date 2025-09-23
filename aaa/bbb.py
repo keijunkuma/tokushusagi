@@ -12,7 +12,7 @@ def itinokazu(result_list):
             if index2 - index1 >= 30 : 
                 return index1,index2
             index1 = index2
-    return -1
+    return -1,-1
 
 if __name__ == "__main__":
     # テストケース1: 1が30個以上連続している場合
