@@ -10,7 +10,7 @@ def itinokazu(result_list):
                 index2 = index2 + 1 #index2はじめの0の位置
 
             if index2 - index1 >= 30 : 
-                return index1
+                return index1,index2
             index1 = index2
     return -1
 

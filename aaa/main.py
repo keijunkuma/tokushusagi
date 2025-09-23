@@ -34,7 +34,6 @@ def get_audio(stream,record_seconds):
     data = stream.read(total_frames, exception_on_overflow=False) #16bit(2byte)*total_frames
     return data
 
-
 def main():
     mode = sys.argv[1]
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
@@ -50,17 +49,20 @@ def main():
             print("初期微動計測")
             break
 
+     result_zeroiti = interval(result_list)
      
     # 音声データを読み込む
     data = get_audio(stream, 5)
 
     result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
     
-    #0.5秒間隔を判定する
-    result_zeroiti = interval(result_list)
-
+    #ナンバーディスプレイの信号があるかどうか判定
+    index1,index2 = itinokazu(result_list)
+    start_byte_index = index1 * 2 * 0.01 * RATE
+    end_byte_index = index2 * 2 * 0.01 * RATE
+    data = data[int(start_byte_index + 480):int(end_byte_index)]
     
-    if result_zeroiti == True:
+    if result_zeroiti == True and index1 != -1:
         # バイナリデータをnp.int16の配列に変換し、正規化
         signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
         print(f"{datetime.datetime.now()}: ナンバーディスプレイのパターンを検知しました。電話番号の検知と文字起こしを開始します。")
@@ -70,11 +72,10 @@ def main():
         decoded_bytes = decode_bytes(decoded_data)
         print_bytes(decoded_bytes)
         number_display(decoded_bytes)
-        #whisper処理
-        transcription = record_and_transcribe(mode,stream)
-    else:
-        print(f"{datetime.datetime.now()}: ナンバーディスプレイではないと判断されました。文字起こしを取得します。")
-        transcription = record_and_transcribe(mode,stream)
+
+    #whisper処理  
+    print(f"{datetime.datetime.now()}: ナンバーディスプレイではないと判断されました。文字起こしを取得します。")
+    transcription = record_and_transcribe(mode,stream)
     
     
     if transcription:
