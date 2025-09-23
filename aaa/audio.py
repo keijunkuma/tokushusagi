@@ -60,7 +60,8 @@ def record_and_transcribe(mode: str, stream) -> str:
             del frames[:last_processed_frame_index]
 
         renzokuzero = zeroiti(segment_data, RATE, 0.01, THRESHOLD)
-        if all(0 == renzokuzero[0] for 0 in renzokuzero) == True:
+        #0が続いたら終了
+        if 1 not in renzokuzero:
             print("無音が連続しました。録音を終了します。")
             break
         
