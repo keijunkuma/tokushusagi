@@ -9,13 +9,17 @@ from email.mime.text import MIMEText
 import ssl
 import datetime
 import pyaudio
+from scipy.io.wavfile import read
+from scipy.signal import spectrogram
+import numpy as np
 # --- 外部ライブラリ ---
 from faster_whisper import WhisperModel
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
 from test import detect_fraud
-from zeroitihantei import zeroiti, hantei
-from phonenumber import number_display, print_bytes, decode_fsk
+from zeroitihantei import zeroiti, interval
+from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
+from bbb import itinokazu
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -26,7 +30,7 @@ RECORD_SECONDS = 2 # 録音時間 (秒)
 INTERVAL_SECONDS = 0.01  # 分析間隔 (秒)
 CHUNK = 1024
 # 閾値設定
-THRESHOLD = 0.1  # 音量の最大値の閾値
+THRESHOLD = 0.1 # 音量の最大値の閾値
 
 def get_audio(stream,record_seconds):
     # 1秒間に含まれるデータ数
@@ -38,16 +42,20 @@ def main():
     mode = sys.argv[1]
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
     audio = pyaudio.PyAudio()
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
+    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
 
     while True :
         data = get_audio(stream, 0.5)
         #この0.5秒でとる予定の物は捨てる最初のいらない音を捨てる
         result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
+        print("aaa")
         #リストの中に1があるかどうか
         if 1 in result_list:
             print("初期微動計測")
             break
+        else:
+            print("bbb")
+
 
      
     # 音声データを読み込む
@@ -55,12 +63,14 @@ def main():
     result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
     result_zeroiti = interval(result_list)
     
-    if result_zeroiti == True
+    if result_zeroiti == True:
         #ナンバーディスプレイの信号があるかどうか判定
+        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.03)
         index1,index2 = itinokazu(result_list)
         start_byte_index = (index1 + 1)  * 2 * INTERVAL_SECONDS * RATE 
         end_byte_index = index2 * 2 * INTERVAL_SECONDS * RATE
         data = data[int(start_byte_index ):int(end_byte_index)]
+        print("ccc")
         
         if  index1 != -1:
             # バイナリデータをnp.int16の配列に変換し、正規化
@@ -72,6 +82,7 @@ def main():
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
             number_display(decoded_bytes)
+            print("ddd")
 
     #whisper処理  
     print(f"{datetime.datetime.now()}: ナンバーディスプレイではないと判断されました。文字起こしを取得します。")

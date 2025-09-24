@@ -3,7 +3,6 @@ import numpy as np
 from faster_whisper import WhisperModel
 from scipy.signal import resample
 from zeroitihantei import zeroiti
-from zero import has_thirty_consecutive_zeros
 
 # 録音設定
 CHUNK = 1024
@@ -18,7 +17,7 @@ def record_and_transcribe(mode: str, stream) -> str:
     マイクからリアルタイムで録音し、文字起こしを行う関数。
     """
     # Whisperモデルの準備
-    model = WhisperModel("large-v3", device="cpu", compute_type="float16")
+    model = WhisperModel("large-v3", device="cpu", compute_type="float32")
 
     frames = []
     full_transcription = ''

@@ -19,6 +19,7 @@ def zeroiti(data, rate, interval_seconds, threshold):
         
         chunk = audio_data[i:end_index]
         max_value = np.max(chunk)
+        #print(f"現在のチャンクの最大値: {max_value}")
         normalized_max_value = max_value / (2**15)
             
         # int型リストに分析結果を追加
