@@ -14,6 +14,13 @@ def itinokazu(result_list):
             index1 = index2
     return -1,-1
 
+def countiti(result_list):
+    c = 0
+    for i in result_list:
+        if i == 1:
+            c += 1
+    return c
+
 if __name__ == "__main__":
     # テストケース1: 1が30個以上連続している場合
     itinokazu_list = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0]

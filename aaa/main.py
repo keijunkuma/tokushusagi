@@ -19,7 +19,7 @@ from audio import record_and_transcribe
 from test import detect_fraud
 from zeroitihantei import zeroiti, interval
 from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
-from bbb import itinokazu
+from bbb import itinokazu,countiti
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -45,7 +45,7 @@ def main():
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
 
     while True :
-        data = get_audio(stream, 0.5)
+        data = get_audio(stream, 0.2)
         #この0.5秒でとる予定の物は捨てる最初のいらない音を捨てる
         result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
         print("aaa")
@@ -59,11 +59,10 @@ def main():
 
      
     # 音声データを読み込む
-    data = get_audio(stream, 5)
-    result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
-    result_zeroiti = interval(result_list)
-    
-    if result_zeroiti == True:
+    data = get_audio(stream, 2)
+    result_list = zeroiti(data, RATE, 0.1, THRESHOLD)
+    if 10 <= countiti(result_list) <=12:
+        data = get_audio(stream, 1)
         #ナンバーディスプレイの信号があるかどうか判定
         result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.03)
         index1,index2 = itinokazu(result_list)
@@ -83,9 +82,16 @@ def main():
             print_bytes(decoded_bytes)
             number_display(decoded_bytes)
             print("ddd")
+            # デコード処理を実行
+            decoded_data = decode_fsk(signal[20:], 1200, 2100, 1300, 48000)
+            print(decoded_data)
+            decoded_bytes = decode_bytes(decoded_data)
+            print_bytes(decoded_bytes)
+            number_display(decoded_bytes)
+            print("ddd")
 
     #whisper処理  
-    print(f"{datetime.datetime.now()}: ナンバーディスプレイではないと判断されました。文字起こしを取得します。")
+    print(f"{datetime.datetime.now()}: 文字起こしをします。")
     transcription = record_and_transcribe(mode,stream)
     
     
