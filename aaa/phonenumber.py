@@ -78,6 +78,8 @@ def number_display(decoded_bytes):
       param_data = param_bits[2:2+param_len]
       param_bits = param_bits[2+param_len:]
       print(param_type, param_len, bytes(param_data).decode())
+      bangou = bytes(param_data).decode()
+    return bangou
 
 if __name__ == "__main__":
     _, signal = read("/content/bbbbbbbbbb.wav")

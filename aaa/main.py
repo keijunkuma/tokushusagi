@@ -17,6 +17,7 @@ from test import detect_fraud
 from zeroitihantei import zeroiti, interval
 from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
 from bbb import itinokazu,countiti
+from gemini import tokutei
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -86,9 +87,10 @@ def main():
             print(decoded_data)
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
-            number_display(decoded_bytes)
+            denwabangou = number_display(decoded_bytes)
             print("ddd")
-
+    
+    ayasii = tokutei(denwabangou)
     #whisper処理  
     print(f"{datetime.datetime.now()}: 文字起こしをします。")
     transcription = record_and_transcribe(mode,stream)
