@@ -1,6 +1,3 @@
-# tokushusagi.py
-
-# --- 標準ライブラリ ---
 import sys
 import os
 import re
@@ -49,7 +46,7 @@ def main():
     while True :
         data = get_audio(stream, 0.2)
         #この0.5秒でとる予定の物は捨てる最初のいらない音を捨てる
-        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, THRESHOLD)
+        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.2)
         print("aaa")
         #リストの中に1があるかどうか
         if 1 in result_list:
