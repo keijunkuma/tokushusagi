@@ -42,6 +42,8 @@ def main():
     mode = sys.argv[1]
     print(f"'{mode}'モードで詐欺検知システムを起動します。")
     audio = pyaudio.PyAudio()
+    for i in range(audio.get_device_count()):
+        print( audio.get_device_info_by_index(i))
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
 
     while True :
