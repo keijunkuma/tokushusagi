@@ -29,6 +29,7 @@ INTERVAL_SECONDS = 0.01  # 分析間隔 (秒)
 CHUNK = 1024
 # 閾値設定
 THRESHOLD = 0.1 # 音量の最大値の閾値
+denwabangou = None  # ← まず初期値を設定する
 
 def get_audio(stream,record_seconds):
     # 1秒間に含まれるデータ数
@@ -80,17 +81,28 @@ def main():
             print(decoded_data)
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
-            number_display(decoded_bytes)
+            denwabangou1 = number_display(decoded_bytes)
             print("ddd")
             # デコード処理を実行
             decoded_data = decode_fsk(signal[20:], 1200, 2100, 1300, 48000)
             print(decoded_data)
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
-            denwabangou = number_display(decoded_bytes)
+            denwabangou2 = number_display(decoded_bytes)
+            # 最後にまとめて、どちらかの番号が条件に合うかチェックします
+            # まず denwabangou1 をチェック
+            if denwabangou1 and denwabangou1.isdigit() and len(denwabangou1) >= 10:
+                denwabangou = denwabangou1
+            # denwabangou1 が条件に合わなければ、次に denwabangou2 をチェック
+            elif denwabangou2 and denwabangou2.isdigit() and len(denwabangou2) >= 10:
+                denwabangou = denwabangou2
+            # 値が代入されているかチェックしてから関数を呼ぶ
+            if denwabangou is not None:
+                ayasii = tokutei(denwabangou)
+            else:
+                print("エラー: 電話番号が取得できませんでした。")
             print("ddd")
     
-    ayasii = tokutei(denwabangou)
     #whisper処理  
     print(f"{datetime.datetime.now()}: 文字起こしをします。")
     transcription = record_and_transcribe(mode,stream)

@@ -79,10 +79,11 @@ def number_display(decoded_bytes):
       param_bits = param_bits[2+param_len:]
       print(param_type, param_len, bytes(param_data).decode())
       bangou = bytes(param_data).decode()
+      print(bangou)
     return bangou
 
 if __name__ == "__main__":
-    _, signal = read("/content/bbbbbbbbbb.wav")
+    _, signal = read("/home/name/tokushusagi/aaa/recording3.wav")
     signal = signal / 32768.0  # Normalize
     decoded_data = decode_fsk(signal, 1200, 2100, 1300, 48000)
     print(decoded_data)
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     print_bytes(decoded_bytes)
     number_display(decoded_bytes)
 
-    _, signal = read("/content/bbbbbbbbbb.wav")
+    _, signal = read("/home/name/tokushusagi/aaa/recording3.wav")
     signal = signal / 32768.0  # Normalize
     decoded_data = decode_fsk(signal[10:], 1200, 2100, 1300, 48000)
     print(decoded_data)
