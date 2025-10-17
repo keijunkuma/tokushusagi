@@ -6,8 +6,8 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-RECORD_SECONDS = 10
-WAVE_OUTPUT_FILENAME = "recording1.wav"
+RECORD_SECONDS = 5
+WAVE_OUTPUT_FILENAME = "recording2.wav"
 
 p = pyaudio.PyAudio()
 
