@@ -9,8 +9,6 @@ import pyaudio
 from scipy.io.wavfile import read
 from scipy.signal import spectrogram
 import numpy as np
-# --- 外部ライブラリ ---
-from faster_whisper import WhisperModel
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
 from test import detect_fraud
@@ -43,7 +41,7 @@ def main():
     audio = pyaudio.PyAudio()
     for i in range(audio.get_device_count()):
         print( audio.get_device_info_by_index(i))
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=CHUNK) #48000hzごとにformatで録音
+    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=48000*300) #48000hzごとにformatで録音
 
     while True :
         data = get_audio(stream, 0.2)
@@ -88,20 +86,20 @@ def main():
             print(decoded_data)
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
-            denwabangou2 = number_display(decoded_bytes)
+            #denwabangou2 = number_display(decoded_bytes)
             # 最後にまとめて、どちらかの番号が条件に合うかチェックします
             # まず denwabangou1 をチェック
-            if denwabangou1 and denwabangou1.isdigit() and len(denwabangou1) >= 10:
-                denwabangou = denwabangou1
+            #if denwabangou1 and denwabangou1.isdigit() and len(denwabangou1) >= 10:
+                #denwabangou = denwabangou1
             # denwabangou1 が条件に合わなければ、次に denwabangou2 をチェック
-            elif denwabangou2 and denwabangou2.isdigit() and len(denwabangou2) >= 10:
-                denwabangou = denwabangou2
+            #elif denwabangou2 and denwabangou2.isdigit() and len(denwabangou2) >= 10:
+                #denwabangou = denwabangou2
             # 値が代入されているかチェックしてから関数を呼ぶ
-            if denwabangou is not None:
-                ayasii = tokutei(denwabangou)
-            else:
-                print("エラー: 電話番号が取得できませんでした。")
-            print("ddd")
+            #if denwabangou is not None:
+                #ayasii = tokutei(denwabangou)
+            #else:
+                #print("エラー: 電話番号が取得できませんでした。")
+            #print("ddd")
     
     #whisper処理  
     print(f"{datetime.datetime.now()}: 文字起こしをします。")
@@ -115,7 +113,7 @@ def main():
 
         result = detect_fraud(transcription, mode)
 
-        match = re.search(r'詐欺の確率(\d+)%', result)
+        match = re.search(r'(\d+)%', result)
         if match:
             probability = int(match.group(1))
             print(f"詐欺の確率部分: {probability}%")

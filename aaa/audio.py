@@ -9,16 +9,16 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 48000  # 録音レートは48000Hzのまま
-SEGMENT_DURATION = 10  # 10秒ごとに文字起こし処理を実行
+SEGMENT_DURATION = 30  # 10秒ごとに文字起こし処理を実行
 THRESHOLD = 0.1  # 音量の最大値の閾値
-RESAMPLE_RATE = 3.0
+RESAMPLE_RATE = 1.0
 
 def record_and_transcribe(mode: str, stream) -> str:
     """
     マイクからリアルタイムで録音し、文字起こしを行う関数。
     """
     # Whisperモデルの準備
-    model = WhisperModel("large-v3", device="cpu", compute_type="float32")
+    model = WhisperModel("./whisper-large-v3", device="cpu", compute_type="float32")
 
     frames = []
     full_transcription = ''
@@ -47,7 +47,7 @@ def record_and_transcribe(mode: str, stream) -> str:
 
         for segment in segments:
             # 実際の時間は segment.start / speed_factor で計算できます
-            print(f"[3倍速時間: {segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
+            print(f"[時間: {segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
         
         if len(segments) >= 2:
             for segment in segments[:-1]:
@@ -61,22 +61,29 @@ def record_and_transcribe(mode: str, stream) -> str:
             # 録音バッファの先頭から、すでに処理した分を削除
             del frames[:last_processed_frame_index]
 
-        renzokuzero = zeroiti(segment_data, RATE, 0.01, THRESHOLD)
+        renzokuzero = zeroiti(segment_data[-(RATE * 6):], RATE, 0.01, THRESHOLD)
         #0が続いたら終了
         if 1 not in renzokuzero:
             print("無音が連続しました。録音を終了します。")
             break
         
     if frames:
+   
         segment_data = b''.join(frames)
+        # numpyバッファに変換
         buffer = np.frombuffer(segment_data, dtype=np.int16).astype(np.float32) / 32768.0
-        
-        # 最終セグメントもリサンプリング
-        num_samples_resampled = int(buffer.shape[0] * (WHISPER_RATE / RATE))
+
+        # 録音した音声を16000Hzにダウンサンプリング
+        num_samples_resampled = int(buffer.shape[0] * resampled_rate)
         resampled_buffer = resample(buffer, num_samples_resampled)
         
         segments, _ = model.transcribe(resampled_buffer, language="ja")
+        
+        segments = list(segments)
+
         for segment in segments:
+            # 実際の時間は segment.start / speed_factor で計算できます
+            print(f"[時間: {segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
             if segment.text not in full_transcription:
                 full_transcription += segment.text
 
