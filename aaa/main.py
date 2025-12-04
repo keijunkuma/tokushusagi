@@ -16,6 +16,7 @@ from zeroitihantei import zeroiti, interval
 from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
 from bbb import itinokazu,countiti
 from gemini import tokutei
+from mail import send_alert_email
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -103,7 +104,7 @@ def main():
     
     #whisper処理  
     print(f"{datetime.datetime.now()}: 文字起こしをします。")
-    transcription = record_and_transcribe(mode,stream)
+    transcription = record_and_transcribe(stream)
     
     
     if transcription:
