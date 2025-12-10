@@ -11,7 +11,7 @@ from scipy.signal import spectrogram
 import numpy as np
 # --- 自作モジュール（ファイル）のインポート ---
 from audio import record_and_transcribe 
-from test import detect_fraud
+from test import detect_fraud, load_local_model
 from zeroitihantei import zeroiti, interval
 from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
 from bbb import itinokazu,countiti
@@ -114,20 +114,46 @@ def main():
 
         result = detect_fraud(transcription, mode)
 
-        match = re.search(r'(\d+)%', result)
-        if match:
-            probability = int(match.group(1))
-            print(f"詐欺の確率部分: {probability}%")
-            if probability >= 70:
-                print("【警告】: 詐欺の可能性が非常に高いです")
-                # 必要に応じてメール送信を実行
-                send_alert_email()
-            else:
-                print("詐欺の可能性は低いです")
-        else:
-            print("判定結果から確率を読み取れませんでした。")
+       result = detect_fraud(transcription, mode)
+    print(f"LLM生ログ: {result}") # デバッグ用に表示
+
+    # --- ここから修正部分 ---
+    
+    # 1. 詐欺確率の抽出 (fraud_probability:数字)
+    # \s* はスペースがあってもOKという意味です
+    match_prob = re.search(r"fraud_probability\s*[::]\s*(\d+)", result)
+    
+    # 2. 判定理由の抽出 (reason:文字, または改行まで)
+    # (?=,|$|alert_level) は「カンマ」か「文末」か「alert_level」の手前まで取るという意味
+    match_reason = re.search(r"reason\s*[::]\s*(.+?)(?=\s*,\s*alert_level|\s*$)", result)
+    
+    # 3. 危険度の抽出 (alert_level:safe/warning/danger)
+    match_alert = re.search(r"alert_level\s*[::]\s*[\"']?(safe|warning|danger)[\"']?", result)
+
+    # --- データの取得と処理 ---
+    
+    # 確率 (取れなかったら0にする)
+    probability = int(match_prob.group(1)) if match_prob else 0
+    
+    # 理由 (取れなかったら"不明"にする)
+    reason_text = match_reason.group(1).strip() if match_reason else "解析不能"
+    
+    # 危険度 (取れなかったら"unknown"にする)
+    alert_lvl = match_alert.group(1) if match_alert else "unknown"
+
+    print(f"解析結果 -> 確率:{probability}%, 危険度:{alert_lvl}, 理由:{reason_text}")
+
+    # --- 判定ロジック ---
+    # 確率70%以上、または alert_level が danger の場合に警告
+    if probability >= 70 or alert_lvl == "danger":
+        print("【警告】: 詐欺の可能性が非常に高いです")
+        send_alert_email()
+        
+    elif alert_lvl == "warning":
+        print("【注意】: 少し怪しい会話が含まれています")
+        
     else:
-        print("文字起こしされたテキストがありません。")
+        print("詐欺の可能性は低いです")
 
 if __name__ == "__main__":
     main()
