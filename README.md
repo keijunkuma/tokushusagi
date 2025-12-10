@@ -39,7 +39,13 @@ export TO_EMAIL=
 export SMTP_PASS=
 
 python3 -m llama_cpp.server --model ./Phi-3.1-mini-128k-instruct/Phi-3.1-mini-128k-instruct-Q4_K_M.gguf --host 0.0.0.0 --port 8080 &
-python3 -m llama_cpp.server   --model ./Gemma-3-4B-IT/gemma-3-4b-it-Q4_K_M.gguf   --host 0.0.0.0   --port 8080 &
+
+python3 -m llama_cpp.server \
+  --model ./Gemma-3-4B-IT/gemma-3-4b-it-Q4_K_M.gguf \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --n_gpu_layers -1
+  
 python3 tokushusagi.py
 ```
 - 以下の情報を入力してください。

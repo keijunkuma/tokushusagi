@@ -23,7 +23,7 @@ def record_and_transcribe(stream) -> str: # 変更: 'mode'引数を削除
     # Whisperモデルの準備
     # 変更: whisper.load_model を使用
     print("Whisperモデルをロードしています...")
-    model = whisper.load_model("large-v3-turbo", device="cpu")
+    model = whisper.load_model("large-v3-turbo", device="cuda")
     print("モデルのロードが完了しました。")
 
     frames = []
