@@ -4,6 +4,7 @@ import whisper  # 変更: faster_whisper から whisper に変更
 from scipy.signal import resample
 from zeroitihantei import zeroiti
 import sys  # 変更: sysをインポート
+import torch
 
 # 録音設定
 CHUNK = 1024
@@ -15,6 +16,29 @@ THRESHOLD = 0.1  # 音量の最大値の閾値
 
 # Whisperが推奨するサンプリングレート
 WHISPER_RATE = 16000
+
+# --- グローバル変数でモデルを保持 ---
+whisper_model = None
+
+def load_whisper_model():
+    """
+    Whisperモデルを起動時に一度だけロードする関数
+    """
+    global whisper_model
+    
+    if whisper_model is None:
+        print("Whisperモデルをロードしています... (これには時間がかかります)")
+        
+        # GPUがあるかチェック (tryは使わずif判定)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"使用デバイス: {device}")
+        model_path = "/home/name/tokushusagi/aaa/whisper_models/large-v3-turbo.pt"
+        # モデルロード (エラー時はスクリプトが停止します)
+        whisper_model = whisper.load_model(model_path, device=device)
+        print("Whisperモデルのロードが完了しました。")
+
+# モジュール読み込み時に即実行
+load_whisper_model()
 
 def record_and_transcribe(stream) -> str: # 変更: 'mode'引数を削除
     """

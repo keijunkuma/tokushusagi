@@ -58,3 +58,4 @@ python3 tokushusagi.py
 
 - 音声入力デバイスの選択
   input_device_indexの値を変更することで選択可能
+arecord -D "hw:CARD=Device,DEV=0" -f S16_LE a.mp4

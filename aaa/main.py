@@ -114,7 +114,6 @@ def main():
 
         result = detect_fraud(transcription, mode)
 
-       result = detect_fraud(transcription, mode)
     print(f"LLM生ログ: {result}") # デバッグ用に表示
 
     # --- ここから修正部分 ---

@@ -6,7 +6,7 @@ from llama_cpp import Llama  # pip install llama-cpp-python
 
 # --- 設定 ---
 # ダウンロードしたモデルファイルのパスを正確に指定してください
-MODEL_PATH = "./home/name/tokushusagi/qwen/qwen2.5-7b-instruct-q4_k_m.gguf"
+MODEL_PATH = "/home/name/tokushusagi/qwen/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf"
 
 # --- グローバル変数でモデルを読み込む（これ重要） ---
 # 関数の中で読み込むと毎回時間がかかるため、起動時に1回だけ読み込みます
