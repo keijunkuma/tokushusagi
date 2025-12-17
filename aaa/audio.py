@@ -32,9 +32,9 @@ def load_whisper_model():
         # GPUがあるかチェック (tryは使わずif判定)
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"使用デバイス: {device}")
-        model_path = "/home/name/tokushusagi/aaa/whisper_models/large-v3-turbo.pt"
+        #model_path = "/home/name/tokushusagi/aaa/whisper_models/large-v3-turbo.pt"
         # モデルロード (エラー時はスクリプトが停止します)
-        whisper_model = whisper.load_model(model_path, device=device)
+        whisper_model = whisper.load_model("small", device=device)
         print("Whisperモデルのロードが完了しました。")
 
 # モジュール読み込み時に即実行
