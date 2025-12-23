@@ -104,22 +104,36 @@ def main():
             #print("ddd")
     
     #whisper処理  
-    print(f"\n{datetime.datetime.now()}: リアルタイム監視を開始します。")
-    full_history = ""  # 会話の履歴を保存する変数
+    print(f"{datetime.datetime.now()}: 通話録音と逐次文字起こしを開始します...")
+    
+    full_history = ""  # 会話の履歴をここに貯めていく
     
     while True:
-        # 1. 20秒間録音して文字にする
-        # audio.pyの record_chunk は (テキスト, 終了フラグ) を返します
+        # 20秒録音して、文字だけもらう (GPU使用)
+        # 判定はここでは行わない！
         text_chunk, is_finished = record_chunk(stream, duration=20)
         
-        # 2. テキストがあれば履歴に追加して判定
+        # テキストがあれば履歴に追加
         if text_chunk:
             full_history += text_chunk + " "
-            print(f"\n--- 現在の会話ログ ---\n{full_history}\n----------------------")
+            # 画面には今の会話状況を表示しておく（安心感のため）
+            print(f"現在の会話ログ: {full_history[-100:]}...") # 最後の方だけ表示
 
-            # 3. LLMで詐欺判定
-            result = detect_fraud(full_history, mode)
-            print(f"LLM判定結果: {result}")
+        # 通話終了（無音）ならループを抜ける
+        if is_finished:
+            print("通話終了を検知しました。最終判定に移ります。")
+            break
+
+    # --- 4. 最後に一括でLLM判定 ---
+    if full_history:
+        print("\n--- 全文文字起こし結果 ---")
+        print(full_history)
+        print("--------------------------\n")
+        print("LLMによる最終判定を実行中...")
+
+        # ここで一度だけLLMを呼ぶ
+        result = detect_fraud(full_history, mode)
+        print(f"LLM生ログ: {result}")
 
             # --- 結果の解析 (正規表現) ---
             match_prob = re.search(r"fraud_probability\s*[::]\s*(\d+)", result)
@@ -134,7 +148,7 @@ def main():
 
             # 4. 危険なら即警告して終了（または継続して警告）
             if probability >= 80 or alert_lvl == "danger":
-                print("\n【緊急警告】詐欺の可能性が極めて高いです!警告メールを送信します!")
+                print("\n【緊急警告】詐欺の可能性が極めて高いです！警告メールを送信します！")
                 send_alert_email()
                 # ここで break すれば警告してシステム終了。
                 # break せずに continue すれば、監視を続けて何度も警告を送る。
