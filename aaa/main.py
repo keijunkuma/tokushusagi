@@ -17,6 +17,7 @@ from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
 from bbb import itinokazu,countiti
 from gemini import tokutei
 from mail import send_alert_email
+from audio import record_chunk
 # --- 環境変数の読み込み ---
 # --- ここまで ---
 
@@ -103,56 +104,51 @@ def main():
             #print("ddd")
     
     #whisper処理  
-    print(f"{datetime.datetime.now()}: 文字起こしをします。")
-    transcription = record_and_transcribe(stream)
+    full_history = ""  # 会話の履歴を保存する変数
     
-    
-    if transcription:
-        print("\n---最終的な文字起こし結果---")
-        print(transcription)
-        print("--------------------------\n")
-
-        result = detect_fraud(transcription, mode)
-
-    print(f"LLM生ログ: {result}") # デバッグ用に表示
-
-    # --- ここから修正部分 ---
-    
-    # 1. 詐欺確率の抽出 (fraud_probability:数字)
-    # \s* はスペースがあってもOKという意味です
-    match_prob = re.search(r"fraud_probability\s*[::]\s*(\d+)", result)
-    
-    # 2. 判定理由の抽出 (reason:文字, または改行まで)
-    # (?=,|$|alert_level) は「カンマ」か「文末」か「alert_level」の手前まで取るという意味
-    match_reason = re.search(r"reason\s*[::]\s*(.+?)(?=\s*,\s*alert_level|\s*$)", result)
-    
-    # 3. 危険度の抽出 (alert_level:safe/warning/danger)
-    match_alert = re.search(r"alert_level\s*[::]\s*[\"']?(safe|warning|danger)[\"']?", result)
-
-    # --- データの取得と処理 ---
-    
-    # 確率 (取れなかったら0にする)
-    probability = int(match_prob.group(1)) if match_prob else 0
-    
-    # 理由 (取れなかったら"不明"にする)
-    reason_text = match_reason.group(1).strip() if match_reason else "解析不能"
-    
-    # 危険度 (取れなかったら"unknown"にする)
-    alert_lvl = match_alert.group(1) if match_alert else "unknown"
-
-    print(f"解析結果 -> 確率:{probability}%, 危険度:{alert_lvl}, 理由:{reason_text}")
-
-    # --- 判定ロジック ---
-    # 確率70%以上、または alert_level が danger の場合に警告
-    if probability >= 70 or alert_lvl == "danger":
-        print("【警告】: 詐欺の可能性が非常に高いです")
-        send_alert_email()
+    while True:
+        # 1. 20秒間録音して文字にする
+        # audio.pyの record_chunk は (テキスト, 終了フラグ) を返します
+        text_chunk, is_finished = record_chunk(stream, duration=20)
         
-    elif alert_lvl == "warning":
-        print("【注意】: 少し怪しい会話が含まれています")
-        
-    else:
-        print("詐欺の可能性は低いです")
+        # 2. テキストがあれば履歴に追加して判定
+        if text_chunk:
+            full_history += text_chunk + " "
+            print(f"\n--- 現在の会話ログ ---\n{full_history}\n----------------------")
+
+            # 3. LLMで詐欺判定
+            result = detect_fraud(full_history, mode)
+            print(f"LLM判定結果: {result}")
+
+            # --- 結果の解析 (正規表現) ---
+            match_prob = re.search(r"fraud_probability\s*[::]\s*(\d+)", result)
+            match_reason = re.search(r"reason\s*[::]\s*(.+?)(?=\s*,\s*alert_level|\s*$)", result)
+            match_alert = re.search(r"alert_level\s*[::]\s*[\"']?(safe|warning|danger)[\"']?", result)
+
+            probability = int(match_prob.group(1)) if match_prob else 0
+            alert_lvl = match_alert.group(1) if match_alert else "unknown"
+            reason_text = match_reason.group(1).strip() if match_reason else "解析不能"
+
+            print(f"解析ステータス -> 危険度:{alert_lvl} (確率:{probability}%)")
+
+            # 4. 危険なら即警告して終了（または継続して警告）
+            if probability >= 80 or alert_lvl == "danger":
+                print("\n【緊急警告】詐欺の可能性が極めて高いです！警告メールを送信します！")
+                send_alert_email()
+                # ここで break すれば警告してシステム終了。
+                # break せずに continue すれば、監視を続けて何度も警告を送る。
+                # 今回は誤検知も考慮して、とりあえずループは抜けないでおきます。
+                
+            elif alert_lvl == "warning":
+                print("【注意】怪しい会話の可能性があります。")
+
+        # 5. 通話終了（無音）ならループを抜ける
+        if is_finished:
+            print("通話が終了したため、監視を停止します。")
+            break
+
+    # 最終確認
+    print("システム終了")
 
 if __name__ == "__main__":
     main()

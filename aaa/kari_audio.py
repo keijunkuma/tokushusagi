@@ -7,13 +7,14 @@ import os
 import sys
 from scipy.signal import resample
 
-# main.pyから呼ばれる zeroitihantei をインポート
+# zeroitihantei のインポート
 try:
     from zeroitihantei import zeroiti
 except ImportError:
     zeroiti = None
 
 # --- 設定 ---
+# ★パスはご自身の環境に合わせてください
 WHISPER_CLI_PATH = "/home/name/tokushusagi/whisper.cpp/build/bin/whisper-cli"
 WHISPER_MODEL_PATH = "/home/name/tokushusagi/whisper.cpp/models/ggml-base.bin"
 
@@ -23,7 +24,8 @@ RATE = 48000
 THRESHOLD = 0.1
 
 def transcribe_with_cli(audio_data_48k):
-    """ 音声データをGPU版Whisperで文字起こしする """
+    """ 音声データを一括でGPU版Whisperで文字起こしする """
+    print("\n[処理中] 音声データをGPUで解析しています...お待ちください...")
     try:
         # 1. 前処理 (48kHz -> 16kHz)
         audio_np = np.frombuffer(audio_data_48k, dtype=np.int16).astype(np.float32) / 32768.0
@@ -47,7 +49,7 @@ def transcribe_with_cli(audio_data_48k):
             "-m", WHISPER_MODEL_PATH,
             "-f", temp_filename,
             "-l", "ja",
-            "--no-timestamps"
+            "--no-timestamps" # 全文を一気に出力
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         text = result.stdout.strip()
@@ -61,36 +63,46 @@ def transcribe_with_cli(audio_data_48k):
         if 'temp_filename' in locals() and os.path.exists(temp_filename):
             os.remove(temp_filename)
 
-def record_chunk(stream, duration=20):
+def record_and_transcribe_all(stream):
     """
-    指定した秒数(duration)だけ録音して、テキストと「通話終了フラグ」を返す
+    【一括録音モード】
+    無音が続くまでひたすら録音し続け、
+    会話が終了してから、最後にまとめてGPUで文字起こしする。
     """
-    print(f"録音中({duration}秒)...")
+    print("録音開始... (会話が終了するまで録音し続けます)")
     frames = []
-    
-    # 指定秒数分ループ
-    for _ in range(0, int(RATE * duration / CHUNK)):
-        try:
+
+    try:
+        while True:
+            # データの読み込み
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
-        except Exception as e:
-            print(f"録音エラー: {e}")
-            break
 
-    # 無音チェック (直近3秒)
-    is_finished = False
-    if zeroiti is not None and len(frames) > (RATE * 3 / CHUNK):
-        check_data = b''.join(frames[-int(RATE * 3 / CHUNK):])
-        renzokuzero = zeroiti(check_data, RATE, 0.01, THRESHOLD)
-        if 1 not in renzokuzero:
-            print("無音が検知されました。")
-            is_finished = True
+            # 無音検知 (直近3秒分だけチェック)
+            if zeroiti is not None and len(frames) > (RATE * 3 / CHUNK):
+                check_data = b''.join(frames[-int(RATE * 3 / CHUNK):])
+                renzokuzero = zeroiti(check_data, RATE, 0.01, THRESHOLD)
+                
+                # 無音が続いたら終了
+                if 1 not in renzokuzero:
+                    print("\n無音が連続しました。通話終了と判断します。")
+                    break
+            
+            # ★ここではWhisperを呼び出しません。ひたすら貯めるだけです。
 
-    # 録音データを結合して文字起こし
-    chunk_data = b''.join(frames)
-    text = transcribe_with_cli(chunk_data)
+    except KeyboardInterrupt:
+        print("\n手動で中断されました。解析に移ります。")
+
+    # ループを抜けたら（電話が終わったら）、溜まったデータを一気に処理する
+    if not frames:
+        return ""
+
+    print(f"録音終了。データサイズ: {len(frames)}チャンク。解析を開始します...")
     
-    if text:
-        print(f"★部分認識: {text}")
+    # データを結合
+    all_audio_data = b''.join(frames)
+    
+    # 最後に一発だけ呼び出す
+    full_text = transcribe_with_cli(all_audio_data)
 
-    return text, is_finished
+    return full_text

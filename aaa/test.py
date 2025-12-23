@@ -22,7 +22,7 @@ def load_local_model():
                 llm = Llama(
                     model_path=MODEL_PATH,
                     n_ctx=16384,      # 会話の記憶量
-                    n_gpu_layers= 1,  # GPUがない場合は0
+                    n_gpu_layers=-1,  # GPUがない場合は0
                     verbose=False    # 余計なログを消す
                 )
                 print("[{os.path.basename(__file__)}] ロード完了")
