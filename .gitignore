@@ -19,3 +19,4 @@ qwen
 mp4
 whisper_models
 tiny.pt
+phone_blacklist.db

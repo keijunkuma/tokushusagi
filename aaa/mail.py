@@ -1,46 +1,97 @@
-# email_handler.py
-
-# --- 標準ライブラリ ---
-import os
 import smtplib
+import sqlite3
+import os
 from email.mime.text import MIMEText
-import ssl
+from email.utils import formatdate
 
-# 環境変数の読み込み (メール送信用)
-SMTP_SERVER = os.getenv('SMTP_SERVER')
-FROM_EMAIL = os.getenv('FROM_EMAIL')
-TO_EMAIL = os.getenv('TO_EMAIL')
-SMTP_PASS = os.getenv('SMTP_PASS')
+# データベースは電話帳と同じファイルを使います
+DB_PATH = "phone_blacklist.db"
 
-def send_alert_email():
+# --- データベース操作（メール用） ---
+def init_email_db():
+    """メールアドレス保存用のテーブルを作成"""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS alert_emails (
+            email TEXT PRIMARY KEY,
+            owner_name TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def add_alert_email(email, name):
+    """通知先メールを追加"""
+    init_email_db()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("INSERT OR REPLACE INTO alert_emails VALUES (?, ?)", (email, name))
+    conn.commit()
+    conn.close()
+
+def get_alert_emails():
+    """登録されている全メールアドレスを取得"""
+    init_email_db()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT email, owner_name FROM alert_emails")
+    rows = cur.fetchall()
+    conn.close()
+    return rows # [(email, name), ...]
+
+def delete_alert_email(email):
+    """メールアドレスを削除"""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM alert_emails WHERE email = ?", (email,))
+    conn.commit()
+    conn.close()
+
+# --- 送信機能 ---
+def send_alert_email(subject="【防犯システム】警告通知", body="詐欺の可能性があります。注意してください。"):
     """
-    詐欺の可能性が高い場合に警告メールを送信する関数。
+    登録されているすべてのメールアドレスに警告を一斉送信する
     """
-    # メール情報が環境変数に設定されているか確認
-    if not all([SMTP_SERVER, FROM_EMAIL, TO_EMAIL, SMTP_PASS]):
-        print("警告: メールの環境変数が設定されていないため、メールは送信されません。")
+    # 1. 登録されたメールアドレスを取得
+    recipients = get_alert_emails()
+    
+    if not recipients:
+        print("★メール送信スキップ: 送信先が登録されていません。")
         return
 
-    # メールの内容を作成
-    msg = MIMEText("詐欺の確率が高い会話が検知されました。本人に確認を取るなど、ご注意ください。", "plain", "utf-8")
-    msg['Subject'] = "【重要・詐欺警告】鳥の便り リアルタイム検知サービス"
-    msg['From'] = FROM_EMAIL
-    msg['To'] = TO_EMAIL
+    # 2. Gmail設定 (環境変数から読み込み)
+    SMTP_SERVER = "smtp.gmail.com"
+    SMTP_PORT = 587
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASS = os.getenv("EMAIL_PASS")
 
-    print("警告メールを送信しています...")
+    if not EMAIL_USER or not EMAIL_PASS:
+        print("エラー: .env に EMAIL_USER または EMAIL_PASS が設定されていません。")
+        return
+
+    # 3. 全員に送信
     try:
-        # メールサーバーに接続して送信
-        context = ssl.create_default_context()
-        smtpobj = smtplib.SMTP_SSL(SMTP_SERVER, 465, context=context)
-        smtpobj.login(FROM_EMAIL, SMTP_PASS)
-        smtpobj.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
-        smtpobj.quit()
-        print("メールを送信しました。")
-    except Exception as e:
-        print(f"メールの送信に失敗しました: {e}")
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_PASS)
 
-# このファイルが直接実行された場合にのみ動くテストコード
+        for to_email, to_name in recipients:
+            msg = MIMEText(body)
+            msg['Subject'] = subject
+            msg['From'] = EMAIL_USER
+            msg['To'] = to_email
+            msg['Date'] = formatdate()
+
+            server.send_message(msg)
+            print(f"メール送信成功 -> {to_name} ({to_email})")
+
+        server.quit()
+        
+    except Exception as e:
+        print(f"メール送信エラー: {e}")
+
+# テスト実行用
 if __name__ == "__main__":
-    # このテストコードを動かすには環境変数の設定が必要です
-    # 例：os.environ['SMTP_SERVER'] = 'your_server'
+    # add_alert_email("test@example.com", "テストさん")
     send_alert_email()
