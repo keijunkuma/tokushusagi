@@ -73,6 +73,11 @@ def record_chunk(stream, duration=20):
         try:
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
+
+            if (i + 1) % chunks_per_sec == 0:
+                current_sec = (i + 1) // chunks_per_sec
+                # \r をつけると、同じ行で数字だけ書き換わります（ログが流れすぎない）
+                print(f"\r >> 録音経過: {current_sec}秒 / {duration}秒 ", end="", flush=True)
         except Exception as e:
             print(f"録音エラー: {e}")
             break
