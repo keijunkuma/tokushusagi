@@ -89,9 +89,7 @@ def main():
             print(decoded_data)
             decoded_bytes = decode_bytes(decoded_data)
             print_bytes(decoded_bytes)
-            #denwabangou2 = number_display(decoded_bytes)
-
-            denwabangou = None # 初期化
+            denwabangou2 = number_display(decoded_bytes)
 
             # 最後にまとめて、どちらかの番号が条件に合うかチェックします
             # まず denwabangou1 をチェック
