@@ -4,6 +4,8 @@ import subprocess
 import wave
 import tempfile
 import os
+import io          # ★追加: メモリ上でのファイル操作に必要
+import requests    # ★追加: HTTP通信に必要
 import sys
 from scipy.signal import resample
 
@@ -13,55 +15,60 @@ try:
 except ImportError:
     zeroiti = None
 
+
 # --- 設定 ---
-WHISPER_CLI_PATH = "/home/name/tokushusagi/whisper.cpp/build/bin/whisper-cli"
-WHISPER_MODEL_PATH = "/home/name/tokushusagi/whisper.cpp/models/ggml-base.bin"
+# サーバーのURL（自分自身のPC内）
+SERVER_URL = "http://127.0.0.1:8080/inference"
+# --- 設定 ---
 
 # 録音設定
 CHUNK = 1024
 RATE = 48000
 THRESHOLD = 0.1
 
-def transcribe_with_cli(audio_data_48k):
-    """ 音声データをGPU版Whisperで文字起こしする """
+def transcribe_with_server(audio_data_48k):
+    """ 音声データをローカルサーバーに投げて文字起こしする (爆速版) """
     try:
         # 1. 前処理 (48kHz -> 16kHz)
+        # Whisperは16kHz必須なのでリサンプリングします
         audio_np = np.frombuffer(audio_data_48k, dtype=np.int16).astype(np.float32) / 32768.0
         num_samples_target = int(len(audio_np) * 16000 / RATE)
         resampled_audio = resample(audio_np, num_samples_target)
         resampled_int16 = (resampled_audio * 32768.0).astype(np.int16)
 
-        # 2. 一時ファイル保存
-        # ★ここで i を使うとエラーになるので、tempfileにお任せしています
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
-            temp_filename = temp_wav.name
-        
-        with wave.open(temp_filename, 'wb') as wf:
+        # 2. メモリ上でWAVファイルデータを作成 (ファイル保存しないので高速)
+        wav_io = io.BytesIO()
+        with wave.open(wav_io, 'wb') as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
             wf.setframerate(16000)
             wf.writeframes(resampled_int16.tobytes())
+        wav_io.seek(0) # 読み込み位置を先頭に戻す
 
-        # 3. Whisper実行
-        cmd = [
-            WHISPER_CLI_PATH,
-            "-m", WHISPER_MODEL_PATH,
-            "-f", temp_filename,
-            "-l", "ja",
-            "--no-timestamps"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        text = result.stdout.strip()
+        # 3. サーバーに送信 (POSTリクエスト)
+        files = {
+            'file': ('audio.wav', wav_io, 'audio/wav')
+        }
+        # 必要に応じてパラメータ調整 (temperatureなど)
+        data = {
+            'temperature': '0.0', 
+            'response_format': 'json'
+        }
         
-        return text
+        # 通信実行
+        response = requests.post(SERVER_URL, files=files, data=data, timeout=60)
+        
+        if response.status_code == 200:
+            result_json = response.json()
+            text = result_json.get('text', '').strip()
+            return text
+        else:
+            print(f"Server Error: {response.status_code}")
+            return ""
 
     except Exception as e:
-        print(f"Whisperエラー: {e}")
+        print(f"Whisper通信エラー(サーバーは起動していますか?): {e}")
         return ""
-    finally:
-        # 一時ファイルの削除
-        if 'temp_filename' in locals() and os.path.exists(temp_filename):
-            os.remove(temp_filename)
 
 def record_chunk(stream, duration=20):
     """
@@ -103,7 +110,7 @@ def record_chunk(stream, duration=20):
 
     # 録音データを結合して文字起こし
     chunk_data = b''.join(frames)
-    text = transcribe_with_cli(chunk_data)
+    text = transcribe_with_server(chunk_data)
     
     if text:
         print(f"★部分認識: {text}")
