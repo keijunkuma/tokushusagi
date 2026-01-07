@@ -20,3 +20,4 @@ mp4
 whisper_models
 tiny.pt
 aaa/phone_blacklist.db
+warning_voice.mp3

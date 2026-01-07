@@ -45,10 +45,10 @@ def main():
         print( audio.get_device_info_by_index(i))
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, input_device_index=4, frames_per_buffer=48000*300) #48000hzごとにformatで録音
 
-    """while True :
+    while True :
         data = get_audio(stream, 0.2)
         #この0.5秒でとる予定の物は捨てる最初のいらない音を捨てる
-        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.2)
+        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.6)
         print("aaa")
         #リストの中に1があるかどうか
         if 1 in result_list:
@@ -56,17 +56,17 @@ def main():
             break
         else:
             print("bbb")
-    """       
+          
 
 
      
     # 音声データを読み込む
-    data = get_audio(stream, 2)
+    data = get_audio(stream, 2.5)
     result_list = zeroiti(data, RATE, 0.1, THRESHOLD)
     if 10 <= countiti(result_list) <=12:
         data = get_audio(stream, 1)
         #ナンバーディスプレイの信号があるかどうか判定
-        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.03)
+        result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.10)
         index1,index2 = itinokazu(result_list)
         start_byte_index = (index1 + 1)  * 2 * INTERVAL_SECONDS * RATE 
         end_byte_index = index2 * 2 * INTERVAL_SECONDS * RATE
@@ -143,7 +143,6 @@ def main():
     
     while True:
         # 1. 20秒間録音して文字にする
-        # audio.pyの record_chunk は (テキスト, 終了フラグ) を返します
         text_chunk, is_finished = record_chunk(stream, duration=20)
         
         # 2. テキストがあれば履歴に追加して判定
@@ -153,20 +152,34 @@ def main():
 
             # 3. LLMで詐欺判定
             result = detect_fraud(full_history, mode)
+            # resultが辞書型(dict)で返ってくる場合のエラー回避用変換
+            if isinstance(result, dict):
+                import json
+                result = json.dumps(result, ensure_ascii=False)
+            
             print(f"LLM判定結果: {result}")
 
-           # --- 結果の解析 (正規表現) ---
-            # 修正前（これだと " " があると読めない）
-            # match_prob = re.search(r"fraud_probability\s*[::]\s*(\d+)", result)
-            # match_reason = re.search(r"reason\s*[::]\s*(.+?)(?=\s*,\s*alert_level|\s*$)", result)
-            # match_alert = re.search(r"alert_level\s*[::]\s*[\"']?(safe|warning|danger)[\"']?", result)
-            # ★修正後
+            # --- 結果の解析 (正規表現) ---
             # キー（fraud_probabilityなど）に " や ' がついていても無視して読み取るように変更
             match_prob = re.search(r"[\"']?fraud_probability[\"']?\s*[:]\s*(\d+)", result)
-            # 理由の部分も、JSONのカンマや改行に対応できるように調整
+            # 理由の部分
             match_reason = re.search(r"[\"']?reason[\"']?\s*[:]\s*[\"']?(.+?)[\"']?(?=\s*,\s*[\"']?alert_level|\s*\}|\s*$)", result)
-            # 危険度の部分も、キーの " " を許容
+            # 危険度の部分
             match_alert = re.search(r"[\"']?alert_level[\"']?\s*[:]\s*[\"']?(safe|warning|danger)[\"']?", result)
+
+            # -------------------------------------------------------------
+            # ★追加: 正規表現の結果を変数に取り出す処理 (ここが抜けていました！)
+            # -------------------------------------------------------------
+            probability = 0
+            alert_lvl = "safe"
+
+            if match_prob:
+                probability = int(match_prob.group(1))
+            
+            if match_alert:
+                alert_lvl = match_alert.group(1)
+            # -------------------------------------------------------------
+
             print(f"解析ステータス -> 危険度:{alert_lvl} (確率:{probability}%)")
 
             # 4. 危険なら即警告して終了（または継続して警告）
@@ -174,14 +187,11 @@ def main():
                 print("\n【緊急警告】詐欺の可能性が極めて高いです!警告メールを送信します!")
                 play_warning_voice("警告します。詐欺の可能性があります。注意してください。")
                 send_alert_email()
-                # ここで break すれば警告してシステム終了。
-                # break せずに continue すれば、監視を続けて何度も警告を送る。
-                # 今回は誤検知も考慮して、とりあえずループは抜けないでおきます。
                 
             elif alert_lvl == "warning":
                 print("【注意】: 少し怪しい要素が含まれていました。")
-                # 注意レベルなら少し優しめに
                 play_warning_voice("会話の内容に注意してください。")
+
         # 5. 通話終了（無音）ならループを抜ける
         if is_finished:
             print("通話が終了したため、監視を停止します。")
