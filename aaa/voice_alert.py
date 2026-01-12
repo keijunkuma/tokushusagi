@@ -1,29 +1,37 @@
 import os
-from gtts import gTTS
-import time
+import subprocess
 
-def play_warning_voice(text="警告。詐欺の可能性があります。電話を切ってください。"):
+# ★成功したデバイスアドレス
+SPEAKER_ADDRESS = "plughw:1,0"
+
+def voice_alert(text):
     """
-    指定したテキストをGoogleの音声合成で喋らせる関数
+    Open JTalkを使って、綺麗な日本語で読み上げる関数
+    （音量ブースト版）
     """
+    print(f"★読み上げ中: {text}")
+    
+    filename = "alert_temp.wav"
+    dic_path = "/var/lib/mecab/dic/open-jtalk/naist-jdic"
+    voice_path = "/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice"
+    
     try:
-        print(f"音声警告中: 「{text}」")
+        # ★ここを変更！ -g 20 を追加して音量を大きくしました
+        # もし音が割れて聞き取りづらい場合は、20 を 10 や 15 に下げてください
+        cmd = f'echo "{text}" | open_jtalk -x {dic_path} -m {voice_path} -ow {filename} -g 20'
         
-        # 1. テキストを音声(mp3)に変換
-        tts = gTTS(text=text, lang='ja')
-        filename = "warning_voice.mp3"
-        tts.save(filename)
+        # 1. 音声ファイル作成
+        os.system(cmd)
         
-        # 2. Linuxのコマンドで再生 (mpg123を使用)
-        # -q: 静かに実行(ログを出さない)
-        os.system(f"mpg123 -q {filename}")
-        
-        # 3. 終わったらファイルを消す（残しておきたければコメントアウト）
-        # os.remove(filename)
-        
+        # 2. 再生
+        if os.path.exists(filename):
+            # 音声ファイルがあるか確認してから再生
+            os.system(f"aplay -D {SPEAKER_ADDRESS} -q {filename}")
+            os.remove(filename)
+            
     except Exception as e:
-        print(f"音声再生エラー: {e}")
+        print(f"読み上げエラー: {e}")
 
+# テスト実行
 if __name__ == "__main__":
-    # テスト用
-    play_warning_voice("緊急警告。この電話は詐欺の可能性があります。")
+    voice_alert("警告します。詐欺の可能性があります。注意してください")

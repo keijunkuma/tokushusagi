@@ -12,34 +12,78 @@ except ImportError:
 
 DB_PATH = "phone_blacklist.db"
 
-# --- 電話帳用DB関数 ---
-def get_phone_data():
+def init_db():
+    """ データベースとテーブルが存在しない場合に作成する """
     conn = sqlite3.connect(DB_PATH)
-    try:
-        df = pd.read_sql_query("SELECT number, owner_name, result_text, last_updated FROM phone_history", conn)
-    except:
-        df = pd.DataFrame()
+    cur = conn.cursor()
+    
+    # テーブル作成（すでにあったら何もしない）
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS phone_history (
+            number TEXT PRIMARY KEY,
+            owner_name TEXT,
+            result_text TEXT,
+            is_dangerous INTEGER,
+            last_updated TEXT
+        )
+    """)
+    conn.commit()
     conn.close()
+
+# アプリ起動時に必ず実行して、テーブルを作る
+init_db()
+
+# --- 電話帳用DB関数 ---
+# --- 電話帳用DB関数 (修正版) ---
+def get_phone_data():
+    conn = None
+    df = pd.DataFrame()
+    try:
+        # timeout=10.0 でロック待ち時間を確保
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        df = pd.read_sql_query("SELECT number, owner_name, result_text, last_updated FROM phone_history", conn)
+    except Exception as e:
+        st.error(f"データ読み込みエラー: {e}")
+    finally:
+        if conn:
+            conn.close()
     return df
 
 def register_phone(number, name):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cur.execute('''
-        INSERT INTO phone_history (number, result_text, is_dangerous, owner_name, last_updated)
-        VALUES (?, ?, 0, ?, ?)
-        ON CONFLICT(number) DO UPDATE SET owner_name = ?, is_dangerous = 0, last_updated = ?
-    ''', (number, "家族登録済み", name, now, name, now))
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        cur = conn.cursor()
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 全角スペースを削除し、綺麗なSQLにしました
+        sql = """
+            INSERT INTO phone_history (number, result_text, is_dangerous, owner_name, last_updated)
+            VALUES (?, ?, 0, ?, ?)
+            ON CONFLICT(number) DO UPDATE SET owner_name = ?, is_dangerous = 0, last_updated = ?
+        """
+        
+        cur.execute(sql, (number, "家族登録済み", name, now, name, now))
+        conn.commit()
+    except Exception as e:
+        st.error(f"登録エラー: {e}")
+        raise e # エラーを呼び出し元に伝えて停止させる
+    finally:
+        if conn:
+            conn.close()
 
 def delete_phone(number):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM phone_history WHERE number = ?", (number,))
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM phone_history WHERE number = ?", (number,))
+        conn.commit()
+    except Exception as e:
+        st.error(f"削除エラー: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 # ==========================================
 #  画面レイアウト

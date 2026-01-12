@@ -21,7 +21,7 @@ from bbb import itinokazu, countiti
 from gemini import tokutei
 from mail import send_alert_email
 from audio import record_chunk
-from voice_alert import play_warning_voice
+from voice_alert import voice_alert
 
 # --- 環境設定 ---
 FORMAT = pyaudio.paInt16 # 2の補数として16bitで表現
@@ -35,7 +35,7 @@ THRESHOLD = 0.1 # 音量の最大値の閾値
 
 # ★重要: ここをご自身の環境に合わせて書き換えてください
 WHISPER_SERVER_PATH = "/home/name/tokushusagi/whisper.cpp/build/bin/whisper-server"
-WHISPER_MODEL_PATH = "/home/name/tokushusagi/whisper.cpp/models/ggml-base.bin" # small推奨
+WHISPER_MODEL_PATH = "/home/name/tokushusagi/whisper.cpp/models/ggml-small.bin" # small推奨
 
 def start_whisper_server():
     """ Whisperサーバーをバックグラウンドで起動する """
@@ -54,11 +54,11 @@ def start_whisper_server():
     
     process = subprocess.Popen(
         cmd, 
-        stdout=None, # デバッグ時は外してもOK
-        stderr=None
+        stdout=subprocess.DEVNULL, # デバッグ時は外してもOK
+        stderr=subprocess.DEVNULL
     )
     
-    time.sleep(15) # モデルが大きい場合は読み込み時間を少し増やす
+    time.sleep(10) # モデルが大きい場合は読み込み時間を少し増やす
     print("Whisperサーバー起動完了 (PID: {})".format(process.pid))
     return process
 
@@ -105,7 +105,7 @@ def main():
         while True:
             data = get_audio(stream, 0.2)
             # この0.5秒でとる予定の物は捨てる（最初のいらない音を捨てる）
-            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.6)
+            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.7)
             
             # リストの中に1があるかどうか
             if 1 in result_list:
@@ -116,8 +116,10 @@ def main():
 
         # --- ナンバーディスプレイ解析 ---
         # 音声データを読み込む
-        data = get_audio(stream, 2.5)
+        data = get_audio(stream, 2.3)
         result_list = zeroiti(data, RATE, 0.1, THRESHOLD)
+        # ★家族フラグの初期化
+        is_family = False
         
         if 10 <= countiti(result_list) <= 12:
             data = get_audio(stream, 1)
@@ -128,7 +130,7 @@ def main():
             start_byte_index = (index1 + 1) * 2 * INTERVAL_SECONDS * RATE 
             end_byte_index = index2 * 2 * INTERVAL_SECONDS * RATE
             
-            # インデックスチェック
+        # インデックスチェック
             if index1 != -1 and end_byte_index > start_byte_index:
                 data = data[int(start_byte_index):int(end_byte_index)]
                 print("ナンバーディスプレイ信号検出")
@@ -148,7 +150,7 @@ def main():
                 denwabangou2 = number_display(decoded_bytes2)
 
                 # 最後にまとめて、どちらかの番号が条件に合うかチェックします
-                denwabangou = None # ← 初期化（重要）
+                denwabangou = "05033333333"# ← 初期化（重要）
                 
                 # まず denwabangou1 をチェック
                 if denwabangou1 and denwabangou1.isdigit() and len(denwabangou1) >= 10:
@@ -169,14 +171,18 @@ def main():
                         # ① 名前が登録されている場合（家族など）
                         msg = f"{owner_name}から電話です。"
                         print(f"【登録済】{msg}")
-                        play_warning_voice(msg)
+                        voice_alert(msg)
+
+                        # ★家族フラグをONにする
+                        print(">>> 家族・知人のため、詐欺判定機能とメール通知は停止します（文字起こしのみ実行） <<<")
+                        is_family = True
                         
                     elif is_dangerous:
                         # ② 詐欺や迷惑電話の履歴がある場合
                         msg = "警告。この番号は迷惑電話の可能性があります。"
                         print(f"【警告】{msg}")
                         print(f"詳細: {result_text}")
-                        play_warning_voice(msg)
+                        voice_alert(msg)
                         
                         # 危険な場合はメールも送る
                         try:
@@ -188,7 +194,7 @@ def main():
                         # ③ 未登録で、かつ危険リストにもない場合
                         msg = "登録されていない番号からの電話です。注意してください。"
                         print(f"【不明】{msg}")
-                        play_warning_voice(msg)
+                        voice_alert(msg)
                 else:
                     print("エラー: 電話番号が取得できませんでした。")
         
@@ -203,41 +209,47 @@ def main():
             if text_chunk:
                 full_history += text_chunk + " "
                 print(f"\n--- 現在の会話ログ ---\n{full_history}\n----------------------")
-
-                # LLM判定
-                result = detect_fraud(full_history, mode)
                 
-                # 辞書型対策
-                if isinstance(result, dict):
-                    result = json.dumps(result, ensure_ascii=False)
-                
-                print(f"LLM判定結果: {result}")
-
-                # --- 結果の解析 (正規表現) ---
-                match_prob = re.search(r"[\"']?fraud_probability[\"']?\s*[:]\s*(\d+)", result)
-                match_alert = re.search(r"[\"']?alert_level[\"']?\s*[:]\s*[\"']?(safe|warning|danger)[\"']?", result)
-
-                probability = 0
-                alert_lvl = "safe"
-
-                if match_prob:
-                    probability = int(match_prob.group(1))
-                if match_alert:
-                    alert_lvl = match_alert.group(1)
-
-                print(f"解析ステータス -> 危険度:{alert_lvl} (確率:{probability}%)")
-
-                # 判定結果に基づくアクション
-                if probability >= 80 or alert_lvl == "danger":
-                    print("\n【緊急警告】詐欺の可能性が極めて高いです!警告メールを送信します!")
-                    play_warning_voice("警告します。詐欺の可能性があります。注意してください。")
-                    send_alert_email()
+                # ★変更点: 家族じゃない時だけ、LLM判定と警告を行う
+                if not is_family:
+                    # LLM判定
+                    result = detect_fraud(full_history, mode)
                     
-                elif alert_lvl == "warning":
-                    print("【注意】: 少し怪しい要素が含まれていました。")
-                    play_warning_voice("会話の内容に注意してください。")
+                    # 辞書型対策
+                    if isinstance(result, dict):
+                        result = json.dumps(result, ensure_ascii=False)
+                    
+                    print(f"LLM判定結果: {result}")
 
-            # 通話終了（無音）ならループを抜ける
+                    # --- 結果の解析 (正規表現) ---
+                    match_prob = re.search(r"[\"']?fraud_probability[\"']?\s*[:]\s*(\d+)", result)
+                    match_alert = re.search(r"[\"']?alert_level[\"']?\s*[:]\s*[\"']?(safe|warning|danger)[\"']?", result)
+
+                    probability = 0
+                    alert_lvl = "safe"
+
+                    if match_prob:
+                        probability = int(match_prob.group(1))
+                    if match_alert:
+                        alert_lvl = match_alert.group(1)
+
+                    print(f"解析ステータス -> 危険度:{alert_lvl} (確率:{probability}%)")
+
+                    # 判定結果に基づくアクション
+                    if probability >= 80 or alert_lvl == "danger":
+                        print("\n【緊急警告】詐欺の可能性が極めて高いです!警告メールを送信します!")
+                        voice_alert("警告します。詐欺の可能性があります。注意してください。")
+                        send_alert_email()
+                        
+                    elif alert_lvl == "warning":
+                        print("【注意】: 少し怪しい要素が含まれていました。")
+                        voice_alert("会話の内容に注意してください。")
+
+                else:
+                    # 家族の場合はここを通る（ログ出力のみ）
+                    print("(家族のため詐欺判定はスキップ中...)")
+                    
+                # 通話終了（無音）ならループを抜ける
             if is_finished:
                 print("通話が終了したため、監視を停止します。")
                 break
