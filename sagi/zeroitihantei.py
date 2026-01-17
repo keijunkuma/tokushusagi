@@ -21,7 +21,7 @@ def zeroiti(data, rate, interval_seconds, threshold):
         max_value = np.max(chunk)
         #print(f"現在のチャンクの最大値: {max_value}")
         normalized_max_value = max_value / (2**15)
-            
+        # print(normalized_max_value)    
         # int型リストに分析結果を追加
         if normalized_max_value >= threshold:
             result_list.append(1)

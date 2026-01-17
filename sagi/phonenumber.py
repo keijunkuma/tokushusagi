@@ -2,6 +2,38 @@ from scipy.io.wavfile import read
 from scipy.signal import spectrogram
 import numpy as np
 
+def number_display_signal(signal, sample_rate):
+
+  fq_arr = []
+  for i in range(int(len(signal)/sample_rate/0.02)):
+    sig = signal[int(i*sample_rate*0.02):int((i+1)*sample_rate*0.02)]
+
+    sec = len(sig)/sample_rate
+    f, t, Sxx = spectrogram(sig, fs=sample_rate, nperseg=len(sig))
+    maxi = 0
+    maxv = -1
+    for i in range(len(f)):
+      if Sxx[i][0] > maxv:
+        maxi = i
+        maxv = Sxx[i][0]
+    fq_arr.append(int(f[maxi]))
+  print(fq_arr)
+  for i in range(len(fq_arr) - 2):
+    if fq_arr[i] == 1300 and fq_arr[i+1] == 1300 and fq_arr[i+2] == 1300:
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02):], 1200, 2100, 1300, sample_rate)
+      print(decoded_data)
+      decoded_bytes = decode_bytes(decoded_data)
+      no = number_display(decoded_bytes)
+      if no:
+        return no
+      
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+20:], 1200, 2100, 1300, sample_rate)
+      print(decoded_data)
+      decoded_bytes = decode_bytes(decoded_data)
+      no = number_display(decoded_bytes)
+      if no:
+        return no
+  return
 
 def decode_fsk(signal, baud_rate, f0, f1, sample_rate):
     bit_duration = sample_rate / baud_rate
@@ -83,42 +115,7 @@ def number_display(decoded_bytes):
     return bangou
 
 if __name__ == "__main__":
-    _, signal = read("/home/name/tokushusagi/aaa/recording3.wav")
+    _, signal = read("/home/name/tokushusagi/sagi/ndsig2.wav")
     signal = signal / 32768.0  # Normalize
-    decoded_data = decode_fsk(signal, 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-
-    decoded_data = decode_fsk(signal[20:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-
-    decoded_data = decode_fsk(signal[30:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-
-    _, signal = read("/home/name/tokushusagi/aaa/recording3.wav")
-    signal = signal / 32768.0  # Normalize
-    decoded_data = decode_fsk(signal[10:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-
-    decoded_data = decode_fsk(signal[20:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
-
-    decoded_data = decode_fsk(signal[30:], 1200, 2100, 1300, 48000)
-    print(decoded_data)
-    decoded_bytes = decode_bytes(decoded_data)
-    print_bytes(decoded_bytes)
-    number_display(decoded_bytes)
+    number_display_signal(signal, 48000)
+    exit(1) 

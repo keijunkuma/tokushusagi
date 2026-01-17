@@ -12,11 +12,12 @@ from scipy.io.wavfile import read
 from scipy.signal import spectrogram
 import numpy as np
 import json 
+import wave
 
 # --- 自作モジュール（ファイル）のインポート ---
 from test import detect_fraud, load_local_model
 from zeroitihantei import zeroiti, interval
-from phonenumber import number_display, print_bytes, decode_fsk, decode_bytes
+from phonenumber import number_display_signal
 from bbb import itinokazu, countiti
 from gemini import tokutei
 from mail import send_alert_email
@@ -68,6 +69,14 @@ def get_audio(stream, record_seconds):
     data = stream.read(total_frames, exception_on_overflow=False) # 16bit(2byte)*total_frames
     return data
 
+def save_audio(filename, data):
+    # Save to WAV file
+    with wave.open(filename, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(48000)
+        wf.writeframes(data)
+
 def main():
     # 引数チェック（指定がなければ default モードにする）
     if len(sys.argv) > 1:
@@ -95,20 +104,20 @@ def main():
             channels=CHANNELS, 
             rate=RATE, 
             input=True, 
-            input_device_index=4, 
-            frames_per_buffer=CHUNK # 適切なバッファサイズに変更
+            input_device_index=0, 
+            frames_per_buffer=48000*20 # 適切なバッファサイズに変更
         )
 
         # --- 待機ループ（受話器が上がるのを待つ） ---
         print("待機中... (受話器が上がるのを検知します)")
         
         while True:
-            data = get_audio(stream, 0.2)
+            data = get_audio(stream, 0.5)
             # この0.5秒でとる予定の物は捨てる（最初のいらない音を捨てる）
-            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.7)
+            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.1)
             
             # リストの中に1があるかどうか
-            if 1 in result_list:
+            if sum(result_list) > 10:
                 print("初期微動計測: 反応あり")
                 break
             else:
@@ -116,87 +125,55 @@ def main():
 
         # --- ナンバーディスプレイ解析 ---
         # 音声データを読み込む
-        data = get_audio(stream, 2.3)
-        result_list = zeroiti(data, RATE, 0.1, THRESHOLD)
+        data = get_audio(stream, 6)
+        save_audio("savea.wav", data)
+        signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+        print("aaa")
+        denwabangou = number_display_signal(signal, 48000)
+        print("bbb")
+        #result_list = zeroiti(data, RATE, 0.1, THRESHOLD)
         # ★家族フラグの初期化
         is_family = False
         
-        if 10 <= countiti(result_list) <= 12:
-            data = get_audio(stream, 1)
-            # ナンバーディスプレイの信号があるかどうか判定
-            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.10)
-            index1, index2 = itinokazu(result_list)
+                
+        # 値が代入されているかチェックしてから関数を呼ぶ
+        if denwabangou is not None:
+            print(f"電話番号 {denwabangou} の調査を開始します...")
             
-            start_byte_index = (index1 + 1) * 2 * INTERVAL_SECONDS * RATE 
-            end_byte_index = index2 * 2 * INTERVAL_SECONDS * RATE
+            # 戻り値を3つ受け取る (名前, 詳細テキスト, 危険フラグ)
+            owner_name, result_text, is_dangerous = tokutei(denwabangou)
             
-        # インデックスチェック
-            if index1 != -1 and end_byte_index > start_byte_index:
-                data = data[int(start_byte_index):int(end_byte_index)]
-                print("ナンバーディスプレイ信号検出")
-                
-                # バイナリデータをnp.int16の配列に変換し、正規化
-                signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
-                print(f"{datetime.datetime.now()}: ナンバーディスプレイのパターンを検知しました。解析を開始します。")
-                
-                # デコード処理1
-                decoded_data = decode_fsk(signal, 1200, 2100, 1300, 48000)
-                decoded_bytes = decode_bytes(decoded_data)
-                denwabangou1 = number_display(decoded_bytes)
-                
-                # デコード処理2 (少しずらして再試行)
-                decoded_data2 = decode_fsk(signal[20:], 1200, 2100, 1300, 48000)
-                decoded_bytes2 = decode_bytes(decoded_data2)
-                denwabangou2 = number_display(decoded_bytes2)
+            # 状況に応じて音声を出し分ける
+            if owner_name:
+                # ① 名前が登録されている場合（家族など）
+                msg = f"{owner_name}から電話です。"
+                print(f"【登録済】{msg}")
+                voice_alert(msg)
 
-                # 最後にまとめて、どちらかの番号が条件に合うかチェックします
-                denwabangou = "05033333333"# ← 初期化（重要）
+                # ★家族フラグをONにする
+                print(">>> 家族・知人のため、詐欺判定機能とメール通知は停止します（文字起こしのみ実行） <<<")
+                is_family = True
                 
-                # まず denwabangou1 をチェック
-                if denwabangou1 and denwabangou1.isdigit() and len(denwabangou1) >= 10:
-                    denwabangou = denwabangou1
-                # denwabangou1 が条件に合わなければ、次に denwabangou2 をチェック
-                elif denwabangou2 and denwabangou2.isdigit() and len(denwabangou2) >= 10:
-                    denwabangou = denwabangou2
+            elif is_dangerous:
+                # ② 詐欺や迷惑電話の履歴がある場合
+                msg = "警告。この番号は迷惑電話の可能性があります。"
+                print(f"【警告】{msg}")
+                print(f"詳細: {result_text}")
+                voice_alert(msg)
                 
-                # 値が代入されているかチェックしてから関数を呼ぶ
-                if denwabangou is not None:
-                    print(f"電話番号 {denwabangou} の調査を開始します...")
+                # 危険な場合はメールも送る
+                try:
+                    send_alert_email() 
+                except Exception as e:
+                    print(f"メール送信エラー: {e}")
                     
-                    # 戻り値を3つ受け取る (名前, 詳細テキスト, 危険フラグ)
-                    owner_name, result_text, is_dangerous = tokutei(denwabangou)
-                    
-                    # 状況に応じて音声を出し分ける
-                    if owner_name:
-                        # ① 名前が登録されている場合（家族など）
-                        msg = f"{owner_name}から電話です。"
-                        print(f"【登録済】{msg}")
-                        voice_alert(msg)
-
-                        # ★家族フラグをONにする
-                        print(">>> 家族・知人のため、詐欺判定機能とメール通知は停止します（文字起こしのみ実行） <<<")
-                        is_family = True
-                        
-                    elif is_dangerous:
-                        # ② 詐欺や迷惑電話の履歴がある場合
-                        msg = "警告。この番号は迷惑電話の可能性があります。"
-                        print(f"【警告】{msg}")
-                        print(f"詳細: {result_text}")
-                        voice_alert(msg)
-                        
-                        # 危険な場合はメールも送る
-                        try:
-                            send_alert_email() 
-                        except Exception as e:
-                            print(f"メール送信エラー: {e}")
-                            
-                    else:
-                        # ③ 未登録で、かつ危険リストにもない場合
-                        msg = "登録されていない番号からの電話です。注意してください。"
-                        print(f"【不明】{msg}")
-                        voice_alert(msg)
-                else:
-                    print("エラー: 電話番号が取得できませんでした。")
+            else:
+                # ③ 未登録で、かつ危険リストにもない場合
+                msg = "登録されていない番号からの電話です。注意してください。"
+                print(f"【不明】{msg}")
+                voice_alert(msg)
+        else:
+            print("エラー: 電話番号が取得できませんでした。")
         
         # --- Whisper処理 (会話監視) ---  
         print(f"\n{datetime.datetime.now()}: リアルタイム監視を開始します。")
