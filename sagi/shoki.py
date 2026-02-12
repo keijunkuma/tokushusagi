@@ -26,7 +26,7 @@ stream = audio.open(
     channels=CHANNELS, 
     rate=RATE, 
     input=True, 
-    input_device_index=0, 
+    input_device_index=4, 
     frames_per_buffer=CHUNK # 適切なバッファサイズに変更
 )
 while True:

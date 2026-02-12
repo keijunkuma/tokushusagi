@@ -22,7 +22,7 @@ def load_local_model():
                     model_path=MODEL_PATH,
                     n_ctx=8192,       # 会話の記憶量（必要に応じて増やす）
                     n_gpu_layers=-1,  # -1 = 全てGPUで処理（最速）
-                    verbose=True     # ログを抑制
+                    verbose=None     # ログを抑制
                 )
                 print(f"[{os.path.basename(__file__)}] ロード完了")
             except Exception as e:

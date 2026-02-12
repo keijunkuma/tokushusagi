@@ -21,3 +21,4 @@ whisper_models
 tiny.pt
 sagi/phone_blacklist.db
 warning_voice.mp3
+*.wav

@@ -27,7 +27,21 @@ def number_display_signal(signal, sample_rate):
       if no:
         return no
       
-      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+20:], 1200, 2100, 1300, sample_rate)
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+9:], 1200, 2100, 1300, sample_rate)
+      print(decoded_data)
+      decoded_bytes = decode_bytes(decoded_data)
+      no = number_display(decoded_bytes)
+      if no:
+        return no
+
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+18:], 1200, 2100, 1300, sample_rate)
+      print(decoded_data)
+      decoded_bytes = decode_bytes(decoded_data)
+      no = number_display(decoded_bytes)
+      if no:
+        return no
+
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+27:], 1200, 2100, 1300, sample_rate)
       print(decoded_data)
       decoded_bytes = decode_bytes(decoded_data)
       no = number_display(decoded_bytes)
@@ -43,6 +57,9 @@ def decode_fsk(signal, baud_rate, f0, f1, sample_rate):
     while len(signal) > float_i + bit_duration:
         segment = signal[int(float_i):int(float_i + bit_duration)]
         f, t, Sxx = spectrogram(segment, fs=sample_rate, nperseg=len(segment))
+
+        # for i in range(len(f)):
+        #   print(i, f[i], "Hz  ", Sxx[i][0])
 
         hz1200 = Sxx[1][0]
         hz2400 = Sxx[2][0]

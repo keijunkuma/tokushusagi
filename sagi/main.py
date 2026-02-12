@@ -104,7 +104,7 @@ def main():
             channels=CHANNELS, 
             rate=RATE, 
             input=True, 
-            input_device_index=0, 
+            input_device_index=4, 
             frames_per_buffer=48000*20 # 適切なバッファサイズに変更
         )
 
@@ -112,9 +112,9 @@ def main():
         print("待機中... (受話器が上がるのを検知します)")
         
         while True:
-            data = get_audio(stream, 0.5)
+            data = get_audio(stream, 0.2)
             # この0.5秒でとる予定の物は捨てる（最初のいらない音を捨てる）
-            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.1)
+            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.10)
             
             # リストの中に1があるかどうか
             if sum(result_list) > 10:
@@ -125,7 +125,7 @@ def main():
 
         # --- ナンバーディスプレイ解析 ---
         # 音声データを読み込む
-        data = get_audio(stream, 6)
+        data = get_audio(stream, 7)
         save_audio("savea.wav", data)
         signal = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
         print("aaa")
