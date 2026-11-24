@@ -47,6 +47,13 @@ def number_display_signal(signal, sample_rate):
       no = number_display(decoded_bytes)
       if no:
         return no
+
+      decoded_data = decode_fsk(signal[int(i*sample_rate*0.02)+36:], 1200, 2100, 1300, sample_rate)
+      print(decoded_data)
+      decoded_bytes = decode_bytes(decoded_data)
+      no = number_display(decoded_bytes)
+      if no:
+        return no
   return
 
 def decode_fsk(signal, baud_rate, f0, f1, sample_rate):

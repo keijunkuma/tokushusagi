@@ -12,6 +12,7 @@ from scipy.io.wavfile import read
 from scipy.signal import spectrogram
 import numpy as np
 import json 
+import traceback
 import wave
 
 # --- 自作モジュール（ファイル）のインポート ---
@@ -112,9 +113,9 @@ def main():
         print("待機中... (受話器が上がるのを検知します)")
         
         while True:
-            data = get_audio(stream, 0.2)
+            data = get_audio(stream, 0.18)
             # この0.5秒でとる予定の物は捨てる（最初のいらない音を捨てる）
-            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.10)
+            result_list = zeroiti(data, RATE, INTERVAL_SECONDS, 0.06)
             
             # リストの中に1があるかどうか
             if sum(result_list) > 10:
@@ -235,6 +236,7 @@ def main():
         print("\n終了操作を受け付けました。")
     except Exception as e:
         print(f"予期せぬエラーが発生: {e}")
+        print(traceback.format_exc())
     
     finally:
         # ★★★ 2. 終了時にサーバーとストリームを確実に停止 ★★★
